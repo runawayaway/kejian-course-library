@@ -27,4 +27,12 @@ for(const c of courses){
   }
 }
 assert.equal(config.documentCount,courses.reduce((n,c)=>n+c.resources.filter(r=>r.format!=='DIR').length,0));
+const community=JSON.parse(await readFile(new URL('../data/community.json',import.meta.url),'utf8'));
+assert.equal(community.repository,config.repository);
+assert.equal(new Set(community.records.map(r=>r.id)).size,community.records.length,'投稿 ID 不能重复');
+for(const r of community.records){
+  assert.ok(courses.some(c=>c.id===r.courseId),'投稿必须归属已收录课程');
+  assert.ok(r.body&&r.teacher&&r.semester,'投稿应保留正文和教师学期字段');
+  assert.equal(r.url,`https://github.com/${config.repository}/issues/${r.number}`);
+}
 console.log(`校验通过：${courses.length} 门课程，${config.documentCount} 组文档；来源、版本与文件名一致。`);

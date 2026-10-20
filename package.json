@@ -5,9 +5,10 @@
   "description": "校园课程资料与经验共享平台，支持 GitHub Pages 和 Docker 部署",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "sync": "node scripts/sync-coursework.mjs && npm run check",
+    "sync": "node scripts/sync-coursework.mjs && node scripts/sync-community.mjs && npm run check",
+    "sync:community": "node scripts/sync-community.mjs",
     "deploy": "npm run check && node scripts/publish-pages.mjs",
-    "check": "node --check assets/app.js && node --check data/courses.js && node scripts/check.mjs"
+    "check": "node --check assets/app.js && node --check assets/community.js && node --check data/courses.js && node scripts/check.mjs && node --test scripts/community.test.mjs"
   },
   "engines": { "node": ">=18" }
 }

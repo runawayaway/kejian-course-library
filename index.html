@@ -5,7 +5,7 @@
   <meta name="description" content="以课程为中心，整理学习资料、修课经验与课程问答。让每一份学习经验，都有下一位读者。">
   <meta name="theme-color" content="#203c59"><title>课间 · 校园课程共享计划</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/style.css">
-  <script src="data/courses.js" defer></script><script src="assets/app.js" defer></script>
+  <script src="data/courses.js" defer></script><script src="assets/community.js" defer></script><script src="assets/app.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">跳到主要内容</a>
@@ -17,11 +17,12 @@
   <main id="main" tabindex="-1"></main>
   <footer><a href="#/" class="footer-brand">课间</a><span>让知识留下，让后来者少走弯路。</span><span>学生共建 · 开放共享 · 持续更新</span></footer>
   <dialog id="contribution-dialog" aria-labelledby="dialog-title"><div class="dialog-head"><div><span class="small-label">一起完善课程资料库</span><h2 id="dialog-title">分享你的学习收获</h2></div><button class="icon-button" id="close-dialog" aria-label="关闭">×</button></div>
-    <p class="muted">填写后生成投稿文稿，通过 GitHub Issue 提交，维护者审核后更新网站。</p>
+    <p class="muted">填写后生成文稿，打开 GitHub 并点击「Create」才算提交。提交后可在课程贡献列表刷新查看；未收录的投稿会标为待核实。</p>
     <form id="contribution-form">
       <div class="form-grid"><label>贡献类型<select name="type"><option value="experience">修课经验</option><option value="resource">分享资料</option><option value="question">课程提问</option><option value="answer">回答问题</option><option value="feedback">纠错反馈</option></select></label><label>所属课程<select name="course" required></select></label></div>
       <label>标题<input name="title" required maxlength="100" placeholder="例如：容器实验中容易忽略的三个问题"></label>
       <div class="form-grid"><label>学期<input name="semester" required maxlength="40" placeholder="2026 秋季"></label><label>授课教师<input name="teacher" required maxlength="40" placeholder="请填写教师；不适用可填写「不适用」"></label></div>
+      <fieldset id="experience-topics"><legend>这条经验包含什么（可多选）</legend><label><input type="checkbox" name="topic" value="学习方法" checked> 学习方法与修课感受</label><label><input type="checkbox" name="topic" value="授课与考核" checked> 授课安排、考核方式或学分</label><p class="muted">含授课与考核的已收录记录会同时显示在课程介绍中；每条记录保留各自的教师和学期。</p></fieldset>
       <label>具体内容<textarea name="content" required minlength="10" maxlength="12000" rows="5" placeholder="写下学习建议、考核情况、问题详情或纠正内容（至少 10 字）"></textarea></label>
       <div id="resource-fields" hidden><label>资料链接<input name="url" type="url" placeholder="https://…"></label><div class="form-grid"><label>资料来源<input name="source" maxlength="200" placeholder="原创 / 作者与出处"></label><label>分享权限<select name="permission"><option>仅提供原始链接</option><option>原创，允许公开分享</option><option>已获得作者授权</option></select></label></div></div>
       <p class="form-note">请勿提交未经授权的课件、个人信息或未公开的试题。投稿前请核实课程、教师与学期。</p>
