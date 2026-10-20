@@ -1,5 +1,6 @@
 """Optional end-to-end check: py -3.11 scripts/browser-check.py (requires Playwright)."""
 import os
+import re
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
@@ -85,7 +86,7 @@ with sync_playwright() as p:
     # Verify configured GitHub URL without submitting anything externally.
     def configured_data(route):
         response = route.fetch()
-        route.fulfill(response=response, body=response.text().replace("repository: ''", "repository: 'example/course-library'"))
+        route.fulfill(response=response, body=re.sub(r"repository:\s*'[^']*'", "repository: 'example/course-library'", response.text(), count=1))
     page.route('**/data/courses.js', configured_data)
     page.goto(base)
     page.locator('#header-contribute').click()
