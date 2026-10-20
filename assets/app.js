@@ -11,7 +11,10 @@
   const helpful = readSet('kejian-helpful');
   let filter = '全部课程', query = '', college = '', currentCourse, activeTab = 'overview', toastTimer;
   const repository = /^[\w.-]+\/[\w.-]+$/.test(config.repository) ? config.repository : '';
-  let communityStatus = '正在读取投稿…', communityBusy = false;
+  let communityStatus = '正在读取投稿…', communityBusy = false, lastCommunityCheck = 0, lastCommunitySignature = '';
+  let pendingContribution = null;
+  try { pendingContribution = JSON.parse(sessionStorage.getItem('kejian-pending-contribution')); } catch {}
+  if(pendingContribution && (!['courseId','title','content','teacher','semester'].every(k=>typeof pendingContribution[k]==='string') || !Number.isFinite(pendingContribution.startedAt) || Date.now()-pendingContribution.startedAt>3600000))pendingContribution=null;
   const baseExperiences = new Map(courses.map(c=>[c.id,[...c.experiences]]));
   function communityToolbar() { return `<div class="community-toolbar"><p role="status">${esc(communityStatus)}</p><button class="button secondary compact" data-refresh-community ${communityBusy?'disabled':''}>${communityBusy?'正在刷新…':'刷新课程投稿'}</button></div>`; }
   function experienceCard(e, c) {
@@ -23,14 +26,34 @@
   }
   function installCommunity(records) {
     for(const c of courses)c.experiences=[...baseExperiences.get(c.id),...records.filter(e=>e.courseId===c.id)];
+    const signature=JSON.stringify(records);
+    const changed=signature!==lastCommunitySignature;lastCommunitySignature=signature;
     const focused=document.activeElement?.id;
-    if(currentCourse)detail(currentCourse);
-    else if(document.querySelector('#course-results'))renderResults(location.hash==='#/bookmarks');
+    if(currentCourse && changed)detail(currentCourse);
+    else if(currentCourse)updateCommunityToolbar();
+    else if(changed && document.querySelector('#course-results'))renderResults(location.hash==='#/bookmarks');
     if(focused?.startsWith('tab-'))document.getElementById(focused)?.focus();
+    if(pendingContribution){
+      const p=pendingContribution;
+      const found=records.find(r=>r.courseId===p.courseId && r.title.trim()===p.title.trim() && r.body.trim()===p.content.trim() && r.teacher===p.teacher.trim() && r.semester===p.semester.trim());
+      if(found){
+        pendingContribution=null;try{sessionStorage.removeItem('kejian-pending-contribution');}catch{}
+        dialog.close();
+        const course=courses.find(c=>c.id===found.courseId);
+        if(currentCourse?.id===course.id)setTab('experiences');
+        else {window.addEventListener('hashchange',()=>{if(currentCourse?.id===course.id)setTab('experiences');},{once:true});location.hash='/course/'+course.id;}
+        toast(`投稿已同步到「${course.name}」${found.accepted?'':'，当前标为待核实'}`);
+      }
+    }
   }
-  async function refreshCommunity() {
+  function updateCommunityToolbar() {
+    const bar=document.querySelector('.community-toolbar');
+    if(bar){bar.querySelector('[role="status"]').textContent=communityStatus;const b=bar.querySelector('button');b.disabled=communityBusy;b.textContent=communityBusy?'正在刷新…':'刷新课程投稿';}
+  }
+  async function refreshCommunity({automatic=false}={}) {
     if(communityBusy||!repository)return;
-    communityBusy=true;communityStatus='正在读取 GitHub 投稿…';if(currentCourse)renderTab(currentCourse);
+    if(automatic && Date.now()-lastCommunityCheck<(pendingContribution?3000:20000))return;
+    lastCommunityCheck=Date.now();communityBusy=true;communityStatus='正在读取 GitHub 投稿…';updateCommunityToolbar();
     try {
       const issues=[];
       for(let page=1;page<=10;page++){
@@ -40,9 +63,9 @@
         if(batch.length<100)break;if(page===10)throw new Error('Too many pages');
       }
       const records=issues.map(i=>window.CourseCommunity.parseIssue(i,courses,repository)).filter(Boolean);
-      communityStatus='已读取最新 GitHub 投稿；待核实内容单独标注。';communityBusy=false;installCommunity(records);
+      communityStatus='已读取最新 GitHub 投稿；回到本页或保持页面打开时会自动同步。待核实内容单独标注。';communityBusy=false;installCommunity(records);
     } catch {
-      communityStatus='暂时无法读取最新投稿（网络或 GitHub 访问额度限制）。保留已加载记录，请稍后重试。';communityBusy=false;if(currentCourse)renderTab(currentCourse);
+      communityStatus='暂时无法读取最新投稿（网络或 GitHub 访问额度限制）。保留已加载记录，请稍后重试。';communityBusy=false;updateCommunityToolbar();
     }
   }
   async function loadCommunity() {
@@ -89,7 +112,7 @@
     if(activeTab==='experiences') target.innerHTML=communityToolbar()+(c.experiences.length?'':`<div class="empty"><h2>修课经验，等你补上</h2><p>仓库提供了作业与报告，尚未收录注明教师、学期的个人修课经验。</p></div>`)+c.experiences.map(e=>experienceCard(e,c)).join('')+`<button class="button secondary" data-contribute="experience">＋ 分享我的修课经验</button>`;
     if(activeTab==='questions') target.innerHTML=(c.questions.length?c.questions.map(q=>{const key=c.id+'/'+q.id;return `<article class="reading-panel"><h2>${esc(q.title)}</h2><div class="experience-meta">${esc(c.semester)} · ${esc(c.teacher)} · 课程问答</div><div class="answer"><span class="small-label">${esc(q.author)}的回答</span><p>${esc(q.answer)}</p></div><div class="answer-actions"><button class="text-button" data-helpful="${key}" aria-pressed="${helpful.has(key)}">${helpful.has(key)?'✓ 已标记有帮助':'♡ 对我有帮助'}</button><button class="text-button" data-answer="${esc(q.title)}">补充回答</button></div></article>`;}).join(''):`<div class="empty"><h2>好问题，是学习的开始</h2><p>这门课还没有收录问答，欢迎提出你的第一个问题。</p></div>`)+`<button class="button primary" data-contribute="question">＋ 提出课程问题</button>`;
   }
-  function guide() {currentCourse=null;main.innerHTML=`<div class="guide"><span class="hero-kicker">一份可以接力的校园资料库</span><h1>把你的经验，留给下一位同学。</h1><p class="detail-description">课间以课程为中心，收集可追溯的学习资料与修课经验。任何人都能浏览；贡献内容通过 GitHub 提交，由维护者审核。</p><section class="reading-panel"><h2>怎样贡献内容</h2><ol><li>找到课程，点击「分享课程资料」「写一篇修课经验」或「提出课程问题」。</li><li>填写标题、教师、学期和具体内容。资料请补充来源、原始链接与分享权限。</li><li>生成投稿文稿。配置仓库后，可打开已预填内容的 GitHub Issue，登录 GitHub 后提交。</li><li>提交 Issue 后回到课程点击「刷新课程投稿」。维护者投稿和带「已收录」标签的记录可用于授课参考，其他记录标为待核实。</li></ol><button class="button primary" data-contribute="experience">开始贡献</button></section><section class="reading-panel"><h2>分享什么，会更有帮助？</h2><p>你原创的知识梳理、实验排错记录、公开资料链接，以及注明学期与教师的学习经历。经验可以描述课堂节奏、学习投入、作业形式和复习方法。</p><p>避免以偏概全，不进行教师评分和排名。不上传未经许可的课件、个人信息和未公开试题。链接失效或内容过期，可通过课程页面提交反馈。</p></section><section class="reading-panel"><h2>当前版本的协作方式</h2><p>网站是可部署到 GitHub Pages 的静态资料库。收藏和「有帮助」标记只保存在当前浏览器，不作为全站统计。网页不提供站内注册或在线文件上传。修课投稿从公开 GitHub Issue 读取，未收录的记录单独标注；网络不可用时保留网站发布时的记录。</p><p>${repository?`协作仓库：<a class="text-button" href="https://github.com/${repository}" target="_blank" rel="noopener noreferrer">${esc(repository)} ↗</a>`:'维护者尚未配置 GitHub 仓库。你仍可生成并下载投稿文稿；仓库配置完成后即可在线提交。'}</p><p>维护者在 <code>data/courses.js</code> 设置 <code>SITE_CONFIG.repository</code>，并维护课程数据。新课程建议、问答补充和纠错均通过 Issue 审核处理。</p></section></div>`;}
+  function guide() {currentCourse=null;main.innerHTML=`<div class="guide"><span class="hero-kicker">一份可以接力的校园资料库</span><h1>把你的经验，留给下一位同学。</h1><p class="detail-description">课间以课程为中心，收集可追溯的学习资料与修课经验。任何人都能浏览；贡献内容通过 GitHub 提交，由维护者审核。</p><section class="reading-panel"><h2>怎样贡献内容</h2><ol><li>找到课程，点击「分享课程资料」「写一篇修课经验」或「提出课程问题」。</li><li>填写标题、教师、学期和具体内容。资料请补充来源、原始链接与分享权限。</li><li>生成投稿文稿。配置仓库后，可打开已预填内容的 GitHub Issue，登录 GitHub 后提交。</li><li>修课经验提交后切回本页，网站自动检查并展示；也可点击「刷新课程投稿」。维护者投稿和带「已收录」标签的记录可用于授课参考，其他记录标为待核实。</li></ol><button class="button primary" data-contribute="experience">开始贡献</button></section><section class="reading-panel"><h2>分享什么，会更有帮助？</h2><p>你原创的知识梳理、实验排错记录、公开资料链接，以及注明学期与教师的学习经历。经验可以描述课堂节奏、学习投入、作业形式和复习方法。</p><p>避免以偏概全，不进行教师评分和排名。不上传未经许可的课件、个人信息和未公开试题。链接失效或内容过期，可通过课程页面提交反馈。</p></section><section class="reading-panel"><h2>当前版本的协作方式</h2><p>网站是可部署到 GitHub Pages 的静态资料库。收藏和「有帮助」标记只保存在当前浏览器，不作为全站统计。网页不提供站内注册或在线文件上传。修课投稿从公开 GitHub Issue 读取，未收录的记录单独标注；网络不可用时保留网站发布时的记录。</p><p>${repository?`协作仓库：<a class="text-button" href="https://github.com/${repository}" target="_blank" rel="noopener noreferrer">${esc(repository)} ↗</a>`:'维护者尚未配置 GitHub 仓库。你仍可生成并下载投稿文稿；仓库配置完成后即可在线提交。'}</p><p>维护者在 <code>data/courses.js</code> 设置 <code>SITE_CONFIG.repository</code>，并维护课程数据。新课程建议、问答补充和纠错均通过 Issue 审核处理。</p></section></div>`;}
   function route() {
     const path=location.hash.replace(/^#/, '')||'/';activeTab='overview';
     document.querySelectorAll('[data-nav]').forEach(x=>x.classList.toggle('active',x.dataset.nav===(path==='/bookmarks'?'bookmarks':path==='/guide'?'guide':'home')));
@@ -116,9 +139,17 @@
   function validate() {const resource=form.elements.type.value==='resource';form.elements.url.required=resource;form.elements.source.required=resource;return form.reportValidity();}
   form.elements.type.onchange=()=>{document.querySelector('#experience-topics').hidden=form.elements.type.value!=='experience';document.querySelector('#resource-fields').hidden=form.elements.type.value!=='resource';form.elements.url.required=form.elements.type.value==='resource';form.elements.source.required=form.elements.type.value==='resource';document.querySelector('#submission-result').hidden=true;};
   form.addEventListener('input',()=>{document.querySelector('#submission-result').hidden=true;});
-  form.onsubmit=e=>{e.preventDefault();if(!validate())return;const d=draft();const result=document.querySelector('#submission-result');result.hidden=false;result.innerHTML=`<strong>文稿已生成，还需打开 GitHub 并点击 Create 完成提交。</strong><textarea aria-label="投稿 Markdown 文稿" readonly></textarea><p>提交后回到课程，点击「刷新课程投稿」查看。待核实投稿不会直接作为授课与考核参考。</p><button class="button secondary compact" id="copy-draft" type="button">复制文稿</button> ${repository?`<a id="github-submit" class="button primary compact" target="_blank" rel="noopener noreferrer">打开 GitHub 投稿 ↗</a>`:'<p>维护者尚未配置协作仓库。可复制或下载文稿，交给维护者审核。</p>'}`;result.querySelector('textarea').value=`# ${d.title}\n\n${d.body}`;if(repository)result.querySelector('#github-submit').href=`https://github.com/${repository}/issues/new?title=${encodeURIComponent(d.title)}&body=${encodeURIComponent(d.body)}`;result.querySelector('#copy-draft').onclick=async()=>{try{await navigator.clipboard.writeText(`# ${d.title}\n\n${d.body}`);toast('投稿文稿已复制');}catch{result.querySelector('textarea').select();toast('请按 Ctrl+C 复制已选中的文稿');}};result.scrollIntoView({block:'nearest'});};
+  form.onsubmit=e=>{e.preventDefault();if(!validate())return;const d=draft();const result=document.querySelector('#submission-result');result.hidden=false;result.innerHTML=`<strong>文稿已生成，还需打开 GitHub 并点击 Create 完成提交。</strong><textarea aria-label="投稿 Markdown 文稿" readonly></textarea><p>${form.elements.type.value==='experience'?'提交后切回本页会自动检查；读到新投稿后自动打开课程经验。也可点击「刷新课程投稿」。待核实投稿不直接作为授课参考。':'资料、问答与纠错由维护者处理，提交后请保留 GitHub 投稿记录。'}</p><button class="button secondary compact" id="copy-draft" type="button">复制文稿</button> ${repository?`<a id="github-submit" class="button primary compact" target="_blank" rel="noopener noreferrer">打开 GitHub 投稿 ↗</a>`:'<p>维护者尚未配置协作仓库。可复制或下载文稿，交给维护者审核。</p>'}`;result.querySelector('textarea').value=`# ${d.title}\n\n${d.body}`;if(repository)result.querySelector('#github-submit').href=`https://github.com/${repository}/issues/new?title=${encodeURIComponent(d.title)}&body=${encodeURIComponent(d.body)}`;result.querySelector('#copy-draft').onclick=async()=>{try{await navigator.clipboard.writeText(`# ${d.title}\n\n${d.body}`);toast('投稿文稿已复制');}catch{result.querySelector('textarea').select();toast('请按 Ctrl+C 复制已选中的文稿');}};result.scrollIntoView({block:'nearest'});};
   document.querySelector('#download-draft').onclick=()=>{if(!validate())return;const d=draft();const url=URL.createObjectURL(new Blob([`# ${d.title}\n\n${d.body}`],{type:'text/markdown;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='kejian-contribution.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('投稿文稿已下载，审核后才会发布');};
   document.querySelector('#header-contribute').onclick=()=>openContribution();document.querySelector('#close-dialog').onclick=()=>dialog.close();
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('#github-submit'))return;
+    if(form.elements.type.value==='experience' && form.elements.course.value!=='general'){
+      pendingContribution={courseId:form.elements.course.value,title:form.elements.title.value,content:form.elements.content.value,teacher:form.elements.teacher.value,semester:form.elements.semester.value,startedAt:Date.now()};
+      try{sessionStorage.setItem('kejian-pending-contribution',JSON.stringify(pendingContribution));}catch{}
+      toast('请在 GitHub 完成提交，再切回此页；网站会自动检查并显示投稿。');
+    }
+  });
   dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
   document.addEventListener('click',e=>{const b=e.target.closest('[data-refresh-community],[data-save],[data-contribute],[data-feedback],[data-helpful],[data-answer]');if(!b)return;
     if(b.hasAttribute('data-refresh-community')){refreshCommunity();return;}
@@ -128,5 +159,10 @@
     if(b.hasAttribute('data-answer'))openContribution('answer',`回答：${b.dataset.answer}`);
     if(b.hasAttribute('data-helpful')){const key=b.dataset.helpful;helpful.has(key)?helpful.delete(key):helpful.add(key);persist('kejian-helpful',helpful);b.setAttribute('aria-pressed',String(helpful.has(key)));b.textContent=helpful.has(key)?'✓ 已标记有帮助':'♡ 对我有帮助';toast('标记已更新，仅保存在当前浏览器');}
   });
+  function checkOnReturn(){if(document.visibilityState==='visible')refreshCommunity({automatic:true});}
+  window.addEventListener('focus',checkOnReturn);
+  document.addEventListener('visibilitychange',checkOnReturn);
+  window.addEventListener('online',checkOnReturn);
+  setInterval(checkOnReturn,120000);
   window.addEventListener('hashchange',route);route();loadCommunity();
 })();
