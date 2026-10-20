@@ -4,16 +4,27 @@ import assert from 'node:assert/strict';
 const context={window:{}};
 vm.runInNewContext(await readFile(new URL('../data/courses.js',import.meta.url),'utf8'),context);
 const {COURSES:courses,SITE_CONFIG:config}=context.window;
-assert.ok(courses.length>=3,'至少应有三门示例课程');
+assert.ok(courses.length>=3,'至少应有三门课程');
 assert.equal(new Set(courses.map(c=>c.id)).size,courses.length,'课程 ID 不能重复');
 assert.ok(!config.repository||/^[\w.-]+\/[\w.-]+$/.test(config.repository),'repository 应为 owner/repo');
 for(const c of courses){
   for(const field of ['id','name','college','category','semester','teacher','overview'])assert.ok(c[field],`${c.id} 缺少 ${field}`);
   assert.match(c.id,/^[a-z0-9-]+$/);
+  assert.equal(c.teacher,'未提供','未经核实不得生成教师信息');
+  assert.equal(c.credits,null,'未经核实不得生成学分');
   for(const r of c.resources){
     assert.ok(r.source && r.permission,`${r.title} 必须标注来源与权限`);
     if(r.local){assert.match(r.url,/^materials\/[a-z0-9-]+\.md$/);await access(new URL('../'+r.url,import.meta.url));}
-    else assert.equal(new URL(r.url).protocol,'https:');
+    else {
+      const url=new URL(r.url);
+      assert.equal(url.protocol,'https:');
+      assert.equal(url.hostname,'github.com');
+      assert.ok(url.pathname.startsWith('/'+config.sourceRepository+'/'));
+      assert.ok(url.pathname.includes('/'+config.sourceRevision+'/'),'源资料链接应固定到同步版本');
+      if(r.sourcePath) assert.ok(decodeURIComponent(url.pathname).endsWith('/'+r.sourcePath),'链接应与原始文件名一致');
+      for(const v of r.variants||[])assert.ok(decodeURIComponent(new URL(v.url).pathname).endsWith('/'+v.sourcePath));
+    }
   }
 }
-console.log(`校验通过：${courses.length} 门课程，${courses.reduce((n,c)=>n+c.resources.length,0)} 份资料，所有本地文件存在。`);
+assert.equal(config.documentCount,courses.reduce((n,c)=>n+c.resources.filter(r=>r.format!=='DIR').length,0));
+console.log(`校验通过：${courses.length} 门课程，${config.documentCount} 组文档；来源、版本与文件名一致。`);
