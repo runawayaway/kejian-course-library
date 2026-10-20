@@ -1,0 +1,31 @@
+name: 课程资料 / 修课经验 / 问答
+description: 分享学习资料、修课经验，提出或回答课程问题
+title: '[课程贡献] '
+body:
+  - type: input
+    id: course
+    attributes:
+      label: 课程名称
+    validations:
+      required: true
+  - type: input
+    id: context
+    attributes:
+      label: 学期与授课教师
+      description: 请准确填写适用范围，不适用请说明
+    validations:
+      required: true
+  - type: textarea
+    id: content
+    attributes:
+      label: 具体内容
+      description: 资料附原始链接、来源及分享权限；经验说明建议与考核情况；问题附环境和已尝试的步骤
+    validations:
+      required: true
+  - type: checkboxes
+    id: permission
+    attributes:
+      label: 内容确认
+      options:
+        - label: 内容不含个人隐私、未公开试题及未经授权的材料
+          required: true

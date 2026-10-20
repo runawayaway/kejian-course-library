@@ -1,0 +1,10 @@
+name: kejian
+services:
+  web:
+    build: .
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    restart: unless-stopped
+    volumes:
+      - ./data:/usr/share/nginx/html/data:ro
+      - ./materials:/usr/share/nginx/html/materials:ro

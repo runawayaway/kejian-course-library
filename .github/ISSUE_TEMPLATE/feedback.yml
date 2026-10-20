@@ -1,0 +1,16 @@
+name: 内容纠错 / 失效链接 / 新增课程
+description: 帮助资料库保持准确、可用
+body:
+  - type: input
+    id: location
+    attributes:
+      label: 课程名称或页面地址
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: 问题说明与建议修改
+      description: 请提供可核实的依据，新增课程请提供学院、类型和课程简介
+    validations:
+      required: true
