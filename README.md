@@ -62,12 +62,18 @@ window.SITE_CONFIG = {
 
 ## GitHub Pages 发布
 
-1. 把项目提交到自己的 GitHub 仓库，默认分支使用 `main`。
-2. 在仓库 Settings → Pages → Source 选择 **GitHub Actions**。
-3. 推送 main 或手动运行 `Publish course library` 工作流。
-4. 工作流成功后，从其部署环境打开站点地址。
+本项目使用 `gh-pages` 分支发布。项目地址：https://github.com/runawayaway/kejian-course-library
 
-工作流仅发布 index.html、assets、data、materials，不公开项目文档和脚本。全部资源使用相对路径，兼容项目子路径；课程使用 hash 路由，刷新详情页也能加载。
+1. 在仓库 Settings → Pages → Source 选择 **Deploy from a branch**。
+2. Branch 选择 **gh-pages**，目录选择 **/ (root)**，保存。
+3. 后续修改网站后运行 `npm run deploy`，将公开文件更新到发布分支。
+4. 在仓库 Actions 或 Pages 设置页查看构建与部署结果。
+
+`npm run deploy` 需要 Git 凭据具有该仓库写入权限，仅上传 index.html、assets、data、materials 和 .nojekyll。main 分支保留完整源码，通过 `git push origin main` 同步。发布脚本使用带预期提交校验的推送，避免覆盖别人同时发布的版本。
+
+如以后想改为 Actions 发布，可将 `.github/pages-workflow.yml` 移动到 `.github/workflows/pages.yml`，使用带 workflow 权限的凭据提交，再将 Pages Source 改为 GitHub Actions。当前保留为参考文件，避免要求额外的 workflow 授权。
+
+全部资源使用相对路径，兼容项目子路径；课程使用 hash 路由，刷新详情页也能加载。
 
 ## Docker 部署与课程演示
 

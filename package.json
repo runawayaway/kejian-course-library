@@ -5,6 +5,7 @@
   "description": "校园课程资料与经验共享平台，支持 GitHub Pages 和 Docker 部署",
   "scripts": {
     "start": "node scripts/serve.mjs",
+    "deploy": "npm run check && node scripts/publish-pages.mjs",
     "check": "node --check assets/app.js && node --check data/courses.js && node scripts/check.mjs"
   },
   "engines": { "node": ">=18" }
