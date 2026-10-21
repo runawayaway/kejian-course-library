@@ -1,27 +1,6 @@
 {
   "repository": "runawayaway/kejian-course-library",
-  "courses": [
-    {
-      "id": "1d908193-240c-4462-a023-09686e1409ef",
-      "name": "浏览器验证课程-1792598035501",
-      "description": "这门课的简介直接在网页修改。",
-      "college": "同学新增课程",
-      "sourceType": "community",
-      "resources": [],
-      "experiences": [],
-      "tags": [],
-      "status": "同学共建",
-      "accepted": false,
-      "kind": "course",
-      "courseId": "1d908193-240c-4462-a023-09686e1409ef",
-      "version": 2,
-      "editable": false,
-      "createdAt": "2026-10-21T15:54:11.682Z",
-      "updatedAt": "2026-10-21T15:54:13.494Z",
-      "size": 0,
-      "filename": null
-    }
-  ],
+  "courses": [],
   "records": [
     {
       "id": "issue-1",
@@ -41,30 +20,11 @@
       "version": 0,
       "editable": false,
       "imported": true
-    },
-    {
-      "id": "ddbde181-0f09-4dfa-a234-3d3ddac2b67c",
-      "courseId": "1d908193-240c-4462-a023-09686e1409ef",
-      "body": "实验前先整理环境，考核要求请以当学期为准。",
-      "teacher": "未注明",
-      "semester": "未注明",
-      "title": "修课经验",
-      "author": "同学",
-      "status": "同学投稿",
-      "accepted": false,
-      "teaching": true,
-      "kind": "experience",
-      "version": 1,
-      "editable": false,
-      "createdAt": "2026-10-21T15:54:16.040Z",
-      "updatedAt": "2026-10-21T15:54:16.040Z",
-      "size": 0,
-      "filename": null
     }
   ],
   "resources": [],
   "courseOverrides": [],
   "baseEditable": false,
   "admin": false,
-  "syncedAt": "2026-10-21T15:54:13.307Z"
+  "syncedAt": "2026-10-21T15:54:51.279Z"
 }
