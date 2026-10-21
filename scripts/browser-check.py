@@ -14,7 +14,8 @@ with sync_playwright() as p:
     if os.getenv('BROWSER_EXECUTABLE'):options['executable_path']=os.environ['BROWSER_EXECUTABLE']
     browser=p.chromium.launch(**options)
     context=browser.new_context(viewport={'width':1440,'height':1000})
-    context.route('**/assets/runtime-config.js*',lambda route:route.fulfill(status=200,content_type='text/javascript',body='window.API_BASE='+json.dumps(api)+';'))
+    if os.getenv('USE_SITE_CONFIG')!='1':
+        context.route('**/assets/runtime-config.js*',lambda route:route.fulfill(status=200,content_type='text/javascript',body='window.API_BASE='+json.dumps(api)+';'))
     page=context.new_page()
     errors=[]
     popups=[]
@@ -73,7 +74,8 @@ with sync_playwright() as p:
         expect(page.locator('.resource-body h2')).to_contain_text('更新后的笔记.txt')
         # Other browsers see the saved file and experience but cannot edit them.
         second=browser.new_context(viewport={'width':390,'height':844})
-        second.route('**/assets/runtime-config.js*',lambda route:route.fulfill(status=200,content_type='text/javascript',body='window.API_BASE='+json.dumps(api)+';'))
+        if os.getenv('USE_SITE_CONFIG')!='1':
+            second.route('**/assets/runtime-config.js*',lambda route:route.fulfill(status=200,content_type='text/javascript',body='window.API_BASE='+json.dumps(api)+';'))
         visitor=second.new_page();visitor.goto(front+'/#/course/'+course_id)
         expect(visitor.locator('.sync-bar [role=status]')).to_have_text('已同步',timeout=30000)
         expect(visitor.get_by_role('heading',name=course_name,exact=True)).to_be_visible()
