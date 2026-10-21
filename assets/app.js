@@ -85,7 +85,7 @@
     document.querySelector('#course-select-field').hidden=kind==='course';form.elements.course.required=kind!=='course';
     document.querySelector('#course-name-field').hidden=kind!=='course';form.elements.name.required=kind==='course';
     document.querySelector('#file-field').hidden=kind!=='resource';form.elements.file.required=kind==='resource'&&!record;
-    document.querySelector('#file-hint').textContent=record&&kind==='resource'?'当前文件：'+record.title+'。不选择新文件将保留原文件。':'文档、表格、代码或 ZIP，每份不超过 10 MB。';
+    document.querySelector('#file-hint').textContent=record&&kind==='resource'?'当前文件：'+record.title+'。不选择新文件将保留原文件。':'支持文档、表格、代码或 ZIP 文件。';
     document.querySelector('#context-fields').hidden=kind!=='experience';document.querySelector('#context-fields').open=false;
     form.elements.content.required=kind==='experience';form.elements.content.minLength=kind==='experience'?2:0;
     document.querySelector('#content-label').textContent=kind==='experience'?'你的经验':kind==='course'?'课程简介（可选）':'资料说明（可选）';
@@ -96,7 +96,7 @@
   }
   form.onsubmit=async e=>{
     e.preventDefault();if(saving||!form.reportValidity())return;
-    const file=form.elements.file.files[0];if(file&&file.size>10*1024*1024){toast('每份文件不能超过 10 MB');return;}
+    const file=form.elements.file.files[0];
     const course=courses.find(c=>c.id===form.elements.course.value),name=form.elements.name.value.trim();
     if(mode==='course'&&!editing){const existing=courses.find(c=>community.nameKey(c.name)===community.nameKey(name));if(existing){dialog.close();location.hash='/course/'+existing.id;toast('这门课已经存在，可以直接补充内容。');return;}}
     const data={kind:mode,id:editing?.id,version:editing?.version||0,courseId:course?.id,name,content:form.elements.content.value.trim(),teacher:form.elements.teacher.value.trim(),semester:form.elements.semester.value.trim()};

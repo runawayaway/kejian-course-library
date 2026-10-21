@@ -52,10 +52,12 @@ with sync_playwright() as p:
         expect(page.locator('.community-record')).to_contain_text('修改后的经验',timeout=30000)
         page.get_by_role('button',name='上传资料',exact=True).click()
         pdf=b'%PDF-1.4\n% Browser upload integration check\n%%EOF'
+        if os.getenv('TEST_LARGE_UPLOAD')=='1':
+            pdf=pdf+b' '*(11*1024*1024-len(pdf))
         page.locator('[name=file]').set_input_files({'name':'测试笔记.pdf','mimeType':'application/pdf','buffer':pdf})
         page.locator('[name=content]').fill('浏览器真实上传测试')
         page.get_by_role('button',name='上传文件',exact=True).click()
-        expect(page.locator('.resource-body h2')).to_contain_text('测试笔记.pdf',timeout=30000)
+        expect(page.locator('.resource-body h2')).to_contain_text('测试笔记.pdf',timeout=180000)
         href=page.locator('.resource-body h2 a').get_attribute('href')
         downloaded=page.request.get(href)
         assert downloaded.status==200 and downloaded.body()==pdf
