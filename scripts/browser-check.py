@@ -61,7 +61,7 @@ with sync_playwright() as p:
         href=page.locator('.resource-body h2 a').get_attribute('href')
         downloaded=page.request.get(href)
         assert downloaded.status==200 and downloaded.body()==pdf
-        with page.expect_download() as info:page.locator('.resource-body h2 a').click()
+        with page.expect_download() as info:page.locator('.resource-bottom').get_by_role('link',name='下载文件',exact=True).click()
         assert info.value.suggested_filename=='测试笔记.pdf'
         page.locator('[data-edit-resource]').click()
         expect(page.locator('#file-hint')).to_contain_text('测试笔记.pdf')

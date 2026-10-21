@@ -33,8 +33,8 @@
     const context=[e.teacher&&e.teacher!=='未注明'?'教师：'+e.teacher:'',e.semester&&e.semester!=='未注明'?'学期：'+e.semester:''].filter(Boolean).join(' · ');
     return `<article class="reading-panel community-record"><div class="record-heading"><h2>${esc(e.title||'修课经验')}</h2><span class="tag">${esc(e.status||'已收录')}</span></div><p class="experience-meta">${esc(e.author)}${context?' · '+esc(context):''}</p><p class="preserve-lines">${esc(e.body)}</p><div class="record-actions">${e.url?`<a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer" class="text-button">查看来源</a>`:''}${e.editable?`<button class="text-button" data-edit-record="${e.id}">修改</button>`:''}${e.accepted===false?'<span class="muted">待核实，暂不作为确定的授课要求。</span>':''}</div></article>`;
   }
-  function resourceCard(r){
-    return `<article class="reading-panel resource-row"><span class="file-icon">${esc(r.format)}</span><div class="resource-body"><h2><a href="${esc(r.url)}" ${r.local||r.uploaded?'download':'target="_blank" rel="noopener noreferrer"'}>${esc(r.title)} ↗</a></h2><p class="muted">${esc(r.source)}${r.size?' · '+(r.size/1024/1024).toFixed(2)+' MB':''}${r.accepted===false?' · 待核实':''}</p><div class="resource-bottom">${(r.variants||[]).map(v=>`<a class="text-button" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc(v.format)} 格式 ↗</a>`).join('')}${r.editable?`<button class="text-button" data-edit-resource="${r.id}">修改资料</button>`:''}</div></div></article>`;
+  function resourceCard(r,index){
+    return `<article class="reading-panel resource-row"><span class="file-icon">${esc(r.format)}</span><div class="resource-body"><h2><a href="${esc(r.url)}" data-preview="${index}">${esc(r.title)}</a></h2><p class="muted">${esc(r.source)}${r.size?' · '+(r.size/1024/1024).toFixed(2)+' MB':''}${r.accepted===false?' · 待核实':''}</p><div class="resource-bottom"><button class="text-button" data-preview="${index}">预览</button><a class="text-button" href="${esc(window.CoursePreview.fileUrl(r.url))}" download target="_blank" rel="noopener noreferrer">下载文件</a>${(r.variants||[]).map((v,j)=>`<a class="text-button" href="${esc(v.url)}" data-preview="${index}" data-variant="${j}">${esc(v.format)} 预览</a>`).join('')}${r.editable?`<button class="text-button" data-edit-resource="${r.id}">修改资料</button>`:''}</div></div></article>`;
   }
   function detail(c){
     currentCourse=c;
@@ -116,6 +116,7 @@
   document.querySelector('#close-dialog').onclick=()=>dialog.close();
   dialog.onclick=e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}};
   document.addEventListener('click',e=>{
+    const preview=e.target.closest('[data-preview]');if(preview&&currentCourse){e.preventDefault();const resource=currentCourse.resources[Number(preview.dataset.preview)];if(resource){const variant=preview.hasAttribute('data-variant')?resource.variants?.[Number(preview.dataset.variant)]:null;window.CoursePreview.open({...resource,...variant});}return;}
     const b=e.target.closest('[data-add-course],[data-write],[data-share],[data-refresh],[data-save],[data-edit-record],[data-edit-resource],[data-edit-course]');if(!b)return;
     if(b.hasAttribute('data-add-course'))openForm('course');
     if(b.hasAttribute('data-write'))openForm('experience');
