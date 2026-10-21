@@ -1,168 +1,161 @@
 (() => {
   'use strict';
-  const courses = window.COURSES;
-  const config = window.SITE_CONFIG;
-  const main = document.querySelector('main');
-  const dialog = document.querySelector('dialog');
-  const form = document.querySelector('#contribution-form');
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  function readSet(key) { try { const v = JSON.parse(localStorage.getItem(key)); return new Set(Array.isArray(v) ? v.filter(x => typeof x === 'string') : []); } catch { return new Set(); } }
-  const bookmarks = readSet('kejian-bookmarks');
-  const helpful = readSet('kejian-helpful');
-  let filter = '全部课程', query = '', college = '', currentCourse, activeTab = 'overview', toastTimer;
-  const repository = /^[\w.-]+\/[\w.-]+$/.test(config.repository) ? config.repository : '';
-  let communityStatus = '正在读取投稿…', communityBusy = false, lastCommunityCheck = 0, lastCommunitySignature = '';
-  let pendingContribution = null;
-  try { pendingContribution = JSON.parse(sessionStorage.getItem('kejian-pending-contribution')); } catch {}
-  if(pendingContribution && (!['courseId','title','content','teacher','semester'].every(k=>typeof pendingContribution[k]==='string') || !Number.isFinite(pendingContribution.startedAt) || Date.now()-pendingContribution.startedAt>3600000))pendingContribution=null;
-  const baseExperiences = new Map(courses.map(c=>[c.id,[...c.experiences]]));
-  function communityToolbar() { return `<div class="community-toolbar"><p role="status">${esc(communityStatus)}</p><button class="button secondary compact" data-refresh-community ${communityBusy?'disabled':''}>${communityBusy?'正在刷新…':'刷新课程投稿'}</button></div>`; }
-  function experienceCard(e, c) {
-    return `<article class="reading-panel community-record"><div class="record-heading"><h2>${esc(e.title)}</h2><span class="tag">${esc(e.status||'已收录')}</span></div><div class="experience-meta">${esc(e.author)} · 教师：${esc(e.teacher||c.teacher)} · 学期：${esc(e.semester||c.semester)}</div><p class="preserve-lines">${esc(e.body)}</p>${e.advice?`<h3>学习建议</h3><div class="advice">${esc(e.advice)}</div>`:''}${e.assessment?`<h3>考核准备</h3><p>${esc(e.assessment)}</p>`:''}<p class="muted">个人经历仅适用于记录的教师与学期，请核对当学期要求。${e.accepted===false?'此投稿待核实，未纳入授课与考核参考。':''}</p>${e.url?`<a class="text-button" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">查看原始投稿 #${e.number} ↗</a>`:''}</article>`;
+  const config=window.SITE_CONFIG, community=window.CourseCommunity;
+  const baseCourses=window.COURSES;
+  let courses=[...baseCourses], contributions={courses:[],records:[],resources:[]};
+  const main=document.querySelector('main'),dialog=document.querySelector('dialog'),form=document.querySelector('#contribution-form');
+  const repository=/^[\w.-]+\/[\w.-]+$/.test(config.repository)?config.repository:'';
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let bookmarks=new Set();
+  try{const saved=JSON.parse(localStorage.getItem('kejian-bookmarks'));if(Array.isArray(saved))bookmarks=new Set(saved.filter(v=>typeof v==='string'));}catch{}
+  let query='',filter='all',currentCourse=null,activeTab='resources',mode='experience',toastTimer;
+  let busy=false,loaded=false,lastCheck=0,signature='',syncStatus='正在同步…',pending=null;
+  try{pending=JSON.parse(sessionStorage.getItem('kejian-pending-contribution'));}catch{}
+  if(pending&&(!['course','experience','resource'].includes(pending.kind)||typeof pending.name!=='string'||typeof pending.content!=='string'||!Number.isFinite(pending.startedAt)||Date.now()-pending.startedAt>3600000))pending=null;
+
+  function toast(text){const box=document.querySelector('#toast');box.textContent=text;box.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>box.classList.remove('visible'),4500);}
+  function updateCount(){document.querySelector('#bookmark-count').textContent=courses.filter(c=>bookmarks.has(c.id)).length;}
+  function syncBar(){return `<div class="sync-bar"><span role="status">${esc(syncStatus)}</span><button class="text-button" data-refresh ${busy?'disabled':''}>${busy?'同步中…':'刷新'}</button></div>`;}
+  function updateSync(){document.querySelectorAll('.sync-bar').forEach(bar=>{bar.querySelector('[role="status"]').textContent=syncStatus;const b=bar.querySelector('button');b.disabled=busy;b.textContent=busy?'同步中…':'刷新';});}
+  function saveButton(c){return `<button class="save ${bookmarks.has(c.id)?'saved':''}" data-save="${c.id}" aria-label="${bookmarks.has(c.id)?'取消收藏':'收藏'}${esc(c.name)}" aria-pressed="${bookmarks.has(c.id)}">${bookmarks.has(c.id)?'★':'☆'}</button>`;}
+  function card(c){return `<article class="course-card"><div class="card-top"><span class="course-icon ${esc(c.color||'green')}" aria-hidden="true">${esc(c.icon||'＋')}</span>${saveButton(c)}</div><h2><a href="#/course/${c.id}">${esc(c.name)}</a></h2><p>${esc(c.description.slice(0,100))}</p><div class="card-foot"><span>${c.resources.length} 份资料</span><span>${c.experiences.length} 条经验</span>${c.sourceType==='community'?`<span class="tag">同学新增${c.accepted?'':' · 待核实'}</span>`:''}</div></article>`;}
+  function home(savedOnly=false){
+    currentCourse=null;
+    main.innerHTML=`<div class="container"><section class="library-heading"><div><h1>${savedOnly?'我的收藏':'课程资料与修课经验'}</h1><p>${savedOnly?'收藏保存在当前浏览器。':'找资料、看经验，也把你的收获留下。'}</p></div></section><div class="searchbox"><span aria-hidden="true">⌕</span><input id="course-search" type="search" aria-label="搜索课程" placeholder="搜索课程或资料关键词" value="${esc(query)}"></div><div class="library-tools"><div class="filters" aria-label="课程筛选">${[['all','全部'],['resources','有资料'],['experiences','有经验'],['community','同学新增']].map(([id,label])=>`<button class="filter ${filter===id?'selected':''}" data-filter="${id}" aria-pressed="${filter===id}">${label}</button>`).join('')}</div>${syncBar()}</div><div id="course-results" aria-live="polite"></div><div class="add-course-note"><span>还没有这门课？</span><button class="text-button" data-add-course>添加课程</button></div></div>`;
+    document.querySelector('#course-search').oninput=e=>{query=e.target.value;renderResults(savedOnly);};
+    document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});renderResults(savedOnly);});
+    renderResults(savedOnly);
   }
-  function teachingReferences(c) {
-    const records=c.experiences.filter(e=>e.accepted!==false&&e.teaching);
-    return `<section class="teaching-references"><h3>授课与考核参考</h3><p class="muted">来自同学修课记录；不同教师、学期分别展示，不能当作全校统一要求。</p>${records.length?records.map(e=>experienceCard(e,c)).join(''):`<p>${esc(c.style)}</p><div class="advice">${esc(c.assessment)}</div>`}<button class="text-button" data-contribute="experience">补充授课与考核经历</button></section>`;
+  function renderResults(savedOnly=false){
+    const needle=query.trim().toLocaleLowerCase();
+    const found=courses.filter(c=>(!savedOnly||bookmarks.has(c.id))&&(!needle||[c.name,c.college,...(c.tags||[]),...c.resources.map(r=>r.title)].join(' ').toLocaleLowerCase().includes(needle))&&(filter==='all'||filter==='resources'&&c.resources.length||filter==='experiences'&&c.experiences.length||filter==='community'&&c.sourceType==='community'));
+    document.querySelector('#course-results').innerHTML=`<p class="result-count">${found.length} 门课程</p>${found.length?`<div class="course-grid">${found.map(card).join('')}</div>`:`<div class="empty"><h2>${savedOnly?'这里还没有课程':'没有找到这门课'}</h2><p>${savedOnly?'在课程卡片上点星标即可收藏。':'换个关键词，或把这门课加进来。'}</p><button class="button secondary" data-add-course>添加课程</button></div>`}`;
   }
-  function installCommunity(records) {
-    for(const c of courses)c.experiences=[...baseExperiences.get(c.id),...records.filter(e=>e.courseId===c.id)];
-    const signature=JSON.stringify(records);
-    const changed=signature!==lastCommunitySignature;lastCommunitySignature=signature;
-    const focused=document.activeElement?.id;
-    if(currentCourse && changed)detail(currentCourse);
-    else if(currentCourse)updateCommunityToolbar();
-    else if(changed && document.querySelector('#course-results'))renderResults(location.hash==='#/bookmarks');
-    if(focused?.startsWith('tab-'))document.getElementById(focused)?.focus();
-    if(pendingContribution){
-      const p=pendingContribution;
-      const found=records.find(r=>r.courseId===p.courseId && r.title.trim()===p.title.trim() && r.body.trim()===p.content.trim() && r.teacher===p.teacher.trim() && r.semester===p.semester.trim());
-      if(found){
-        pendingContribution=null;try{sessionStorage.removeItem('kejian-pending-contribution');}catch{}
-        dialog.close();
-        const course=courses.find(c=>c.id===found.courseId);
-        if(currentCourse?.id===course.id)setTab('experiences');
-        else {window.addEventListener('hashchange',()=>{if(currentCourse?.id===course.id)setTab('experiences');},{once:true});location.hash='/course/'+course.id;}
-        toast(`投稿已同步到「${course.name}」${found.accepted?'':'，当前标为待核实'}`);
-      }
+  function experienceCard(e,c){
+    const context=[e.teacher&&e.teacher!=='未注明'?'教师：'+e.teacher:'',e.semester&&e.semester!=='未注明'?'学期：'+e.semester:''].filter(Boolean).join(' · ');
+    return `<article class="reading-panel community-record"><div class="record-heading"><h2>${esc(e.title||'修课经验')}</h2><span class="tag">${esc(e.status||'已收录')}</span></div><p class="experience-meta">${esc(e.author)}${context?' · '+esc(context):''}</p><p class="preserve-lines">${esc(e.body)}</p><div class="record-actions">${e.url?`<a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer" class="text-button">查看来源</a><a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer" class="text-button" data-edit>修改原文</a>`:''}${e.accepted===false?'<span class="muted">待核实，暂不作为确定的授课要求。</span>':''}</div></article>`;
+  }
+  function resourceCard(r){
+    return `<article class="reading-panel resource-row"><span class="file-icon">${esc(r.format)}</span><div class="resource-body"><h2><a href="${esc(r.url)}" ${r.local?'download':'target="_blank" rel="noopener noreferrer"'}>${esc(r.title)} ↗</a></h2><p class="muted">${esc(r.source)}${r.accepted===false?' · 待核实':''}</p><div class="resource-bottom">${(r.variants||[]).map(v=>`<a class="text-button" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc(v.format)} 格式 ↗</a>`).join('')}${r.issueUrl?`<a class="text-button" href="${esc(r.issueUrl)}" target="_blank" rel="noopener noreferrer" data-edit>修改分享</a>`:''}</div></div></article>`;
+  }
+  function detail(c){
+    currentCourse=c;
+    main.innerHTML=`<div class="container"><div class="breadcrumbs"><a href="#/">全部课程</a><span>/</span><span>${esc(c.name)}</span></div><section class="detail-hero"><div class="section-title"><div><h1>${esc(c.name)}</h1><p>${esc(c.college&&c.college!=='学院未注明'?c.college:'同学新增课程')}${c.sourceType==='community'&&!c.accepted?' · 待核实':''}</p></div>${saveButton(c)}</div><p class="detail-description">${esc(c.description)}</p><div class="detail-actions"><button class="button primary" data-write>写经验</button><button class="button secondary" data-share>分享资料链接</button>${c.issueUrl?`<a class="text-button" href="${esc(c.issueUrl)}" target="_blank" rel="noopener noreferrer" data-edit>修改课程</a>`:''}</div></section><div class="detail-tools"><div class="tabbar" role="tablist" aria-label="课程内容">${[['resources','资料 '+c.resources.length],['experiences','经验与考核 '+c.experiences.length]].map(([id,label])=>`<button id="tab-${id}" data-tab="${id}" role="tab" aria-selected="${activeTab===id}" aria-controls="detail-content" tabindex="${activeTab===id?0:-1}" class="${activeTab===id?'active':''}">${label}</button>`).join('')}</div>${syncBar()}</div><section id="detail-content" role="tabpanel" aria-labelledby="tab-${activeTab}"></section></div>`;
+    document.querySelectorAll('[data-tab]').forEach(b=>{b.onclick=()=>setTab(b.dataset.tab);b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const id=e.key==='Home'?'resources':e.key==='End'?'experiences':b.dataset.tab==='resources'?'experiences':'resources';setTab(id);document.querySelector('#tab-'+id).focus();};});
+    renderTab(c);
+  }
+  function setTab(id){activeTab=id;document.querySelectorAll('[data-tab]').forEach(b=>{const on=b.dataset.tab===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});document.querySelector('#detail-content')?.setAttribute('aria-labelledby','tab-'+id);if(currentCourse)renderTab(currentCourse);}
+  function renderTab(c){
+    const target=document.querySelector('#detail-content');
+    if(activeTab==='resources')target.innerHTML=c.resources.length?c.resources.map(resourceCard).join(''):'<div class="empty"><h2>还没有资料</h2><p>有好用的笔记或公开资源？分享一个链接吧。</p><button class="button secondary" data-share>分享资料链接</button></div>';
+    else target.innerHTML=`<p class="section-note">学习方法、授课方式和考核经历都在这里。请核对记录中的教师和学期。</p>${c.experiences.length?c.experiences.map(e=>experienceCard(e,c)).join(''):'<div class="empty"><h2>还没有修课经验</h2><p>写几句建议，就能帮助下一位同学。</p><button class="button secondary" data-write>写经验</button></div>'}`;
+  }
+  function route(){
+    const raw=location.hash.slice(1)||'/',[path,params='']=raw.split('?');
+    const id=path.startsWith('/course/')?path.slice(8):null;
+    const c=id?courses.find(c=>c.id===id):null;
+    document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('active',a.dataset.nav===(path==='/bookmarks'?'bookmarks':'home')));
+    if(c){const tab=new URLSearchParams(params).get('tab');activeTab=['resources','experiences'].includes(tab)?tab:c.experiences.length?'experiences':'resources';detail(c);}
+    else if(id){currentCourse=null;main.innerHTML=`<div class="container"><div class="empty"><h1>${loaded?'暂时找不到这门课':'正在加载课程…'}</h1><p>${loaded?'课程可能已更名或暂不可见。':'正在读取同学添加的课程。'}</p><a class="button secondary" href="#/">返回课程列表</a></div></div>`;}
+    else home(path==='/bookmarks');
+    document.title=(c?c.name:path==='/bookmarks'?'我的收藏':'课程资料与修课经验')+' · 课间';updateCount();window.scrollTo(0,0);
+  }
+  function rebuild(data){
+    contributions={courses:Array.isArray(data.courses)?data.courses:[],records:Array.isArray(data.records)?data.records:[],resources:Array.isArray(data.resources)?data.resources:[]};
+    const next=JSON.stringify(contributions),changed=next!==signature,firstMerge=signature==='';signature=next;
+    courses=[...baseCourses,...contributions.courses].map(c=>({...c,resources:[...(c.resources||[]),...contributions.resources.filter(r=>r.courseId===c.id)],experiences:[...(c.experiences||[]),...contributions.records.filter(r=>r.courseId===c.id)]}));
+    window.COURSES=courses;
+    if(changed){
+      if(currentCourse){const updated=courses.find(c=>c.id===currentCourse.id);if(updated){if(firstMerge&&!location.hash.includes('?tab=')&&updated.experiences.length)activeTab='experiences';detail(updated);}else route();}
+      else if(document.querySelector('#course-results'))renderResults(location.hash==='#/bookmarks');
+      else if(location.hash.startsWith('#/course/'))route();
     }
+    updateCount();updateSync();updateCourseOptions();confirmPending();
   }
-  function updateCommunityToolbar() {
-    const bar=document.querySelector('.community-toolbar');
-    if(bar){bar.querySelector('[role="status"]').textContent=communityStatus;const b=bar.querySelector('button');b.disabled=communityBusy;b.textContent=communityBusy?'正在刷新…':'刷新课程投稿';}
+  function confirmPending(){
+    if(!pending)return;
+    const p=pending;
+    const c=courses.find(c=>community.nameKey(c.name)===community.nameKey(p.name));
+    if(!c)return;
+    const found=p.kind==='course'?(c.number>(p.afterIssue||0)?c:null):p.kind==='experience'?c.experiences.find(e=>e.number>(p.afterIssue||0)&&e.body.trim()===p.content.trim()&&e.teacher===(p.teacher||'未注明')&&e.semester===(p.semester||'未注明')):c.resources.find(r=>r.number>(p.afterIssue||0)&&r.issueUrl&&r.url===p.url);
+    if(!found)return;
+    pending=null;try{sessionStorage.removeItem('kejian-pending-contribution');}catch{}dialog.close();
+    const tab=p.kind==='resource'?'resources':'experiences';
+    const next='#/course/'+c.id+'?tab='+tab;
+    if(location.hash===next){currentCourse=c;activeTab=tab;detail(c);}else location.hash=next;
+    toast(p.kind==='course'?'课程已添加，大家都能找到。':'内容已同步到课程页。');
   }
-  async function refreshCommunity({automatic=false}={}) {
-    if(communityBusy||!repository)return;
-    if(automatic && Date.now()-lastCommunityCheck<(pendingContribution?3000:20000))return;
-    lastCommunityCheck=Date.now();communityBusy=true;communityStatus='正在读取 GitHub 投稿…';updateCommunityToolbar();
-    try {
+  async function refreshCommunity({automatic=false}={}){
+    if(busy||!repository)return;
+    if(automatic&&Date.now()-lastCheck<(pending?3000:20000))return;
+    busy=true;lastCheck=Date.now();syncStatus='正在同步…';updateSync();
+    try{
       const issues=[];
       for(let page=1;page<=10;page++){
         const response=await fetch(`https://api.github.com/repos/${repository}/issues?state=all&per_page=100&page=${page}`,{headers:{Accept:'application/vnd.github+json'},cache:'no-store',signal:AbortSignal.timeout(10000)});
         if(!response.ok)throw new Error(String(response.status));
         const batch=await response.json();if(!Array.isArray(batch))throw new Error('Invalid response');issues.push(...batch);
-        if(batch.length<100)break;if(page===10)throw new Error('Too many pages');
+        if(batch.length<100)break;if(page===10)throw new Error('Too many issues');
       }
-      const records=issues.map(i=>window.CourseCommunity.parseIssue(i,courses,repository)).filter(Boolean);
-      communityStatus='已读取最新 GitHub 投稿；回到本页或保持页面打开时会自动同步。待核实内容单独标注。';communityBusy=false;installCommunity(records);
-    } catch {
-      communityStatus='暂时无法读取最新投稿（网络或 GitHub 访问额度限制）。保留已加载记录，请稍后重试。';communityBusy=false;updateCommunityToolbar();
-    }
+      busy=false;loaded=true;syncStatus='已同步';rebuild(community.collectIssues(issues,baseCourses,repository));
+    }catch{busy=false;loaded=true;syncStatus='同步暂不可用，已保留现有内容';updateSync();if(!document.querySelector('#course-results')&&!currentCourse)route();}
   }
-  async function loadCommunity() {
-    try {
-      const response=await fetch('data/community.json',{cache:'no-store'});if(!response.ok)throw new Error('No snapshot');
-      const snapshot=await response.json();if(snapshot.repository!==repository||!Array.isArray(snapshot.records))throw new Error('Invalid snapshot');
-      communityStatus='已加载随网站发布的投稿，正在检查最新内容…';installCommunity(snapshot.records);
-    } catch { communityStatus='未加载到投稿快照，正在尝试 GitHub…'; }
+  async function loadCommunity(){
+    try{const response=await fetch('data/community.json',{cache:'no-store'});if(!response.ok)throw new Error('No snapshot');const data=await response.json();if(data.repository!==repository)throw new Error('Wrong repository');loaded=true;syncStatus='已加载，正在同步…';rebuild(data);}catch{}
     await refreshCommunity();
   }
-  function persist(key, set) { try { localStorage.setItem(key, JSON.stringify([...set])); } catch { toast('浏览器无法保存，当前选择仅在本次访问中保留'); } }
-  function toast(message) { const box = document.querySelector('#toast'); box.textContent = message; box.classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => box.classList.remove('visible'), 3200); }
-  function updateCount() { document.querySelector('#bookmark-count').textContent = courses.filter(c => bookmarks.has(c.id)).length; }
-  function saveButton(c) { return `<button class="save ${bookmarks.has(c.id)?'saved':''}" data-save="${c.id}" aria-pressed="${bookmarks.has(c.id)}" aria-label="${bookmarks.has(c.id)?'取消收藏':'收藏'}${esc(c.name)}" title="${bookmarks.has(c.id)?'取消收藏':'收藏课程'}">${bookmarks.has(c.id)?'★':'☆'}</button>`; }
-  function card(c) { return `<article class="course-card"><div class="card-top"><span class="course-icon ${c.color}" aria-hidden="true">${c.icon}</span>${saveButton(c)}</div><h3><a href="#/course/${c.id}">${esc(c.name)}</a></h3><div class="course-meta">${esc(c.college)} · ${esc(c.category)} · ${c.credits == null ? '学分未提供' : c.credits + ' 学分'}</div><p>${esc(c.description)}</p><div class="tags">${c.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="card-foot"><span>▤ ${c.resources.length} 个资料入口</span><span>▧ ${c.experiences.length} 篇经验</span><span>♧ ${c.questions.length} 个问答</span><a href="#/course/${c.id}" aria-label="查看${esc(c.name)}">↗</a></div></article>`; }
-  function sidebar() { return `<aside class="sidebar"><section class="side-panel green-panel"><span class="small-label">一个人的笔记，一群人的收获</span><h3>你走过的弯路，<br>可以成为别人的路标。</h3><p>一份整理好的笔记，一次真实的修课经历，都是留给下一位同学的礼物。</p><button class="button" data-contribute="experience">＋ 我也来分享</button></section><section class="side-panel"><h3>如何参与共建</h3><div class="step"><span class="step-num">1</span><div><strong>找到你学过的课程</strong><p>浏览课程，看看还有什么可以补充。</p></div></div><div class="step"><span class="step-num">2</span><div><strong>分享资料或修课经验</strong><p>标注教师、学期和资料来源。</p></div></div><div class="step"><span class="step-num">3</span><div><strong>审核后，让更多人看到</strong><p>提交后刷新课程投稿，待核实记录会单独标注。</p></div></div><a class="text-button" href="#/guide">阅读完整共建指南 ↗</a></section><p class="notice">收录西北农林科技大学信息工程学院公开课程资料。来自 runawayaway 与学长们的共同贡献；参考前请核对任课教师要求。</p></aside>`; }
-  function home(savedOnly = false) {
-    currentCourse = null;
-    main.innerHTML = `<div class="container">${savedOnly ? `<div class="detail-hero"><span class="hero-kicker">你的学习资料架</span><h1>我的收藏</h1><p class="detail-description">把关心的课程留在这里，随时回来接着学。收藏保存在当前浏览器。</p></div>` : `<section class="hero"><div><div class="hero-kicker">西北农林科技大学 · 信息工程学院</div><h1>每一门课，<br>都有前人的经验可循。</h1><p>课程资料、修课心得、学习问答，在这里找到彼此。<br>把散落的知识整理起来，把有用的经验传下去。</p><div class="hero-bottom"><a href="#course-library" class="button primary">寻找我的课程 <span aria-hidden="true">↓</span></a><span>不必从零开始，也欢迎留下你的那一份。</span></div></div><div class="hero-art" aria-hidden="true"><div class="art-orbit"></div><span class="art-star">✳</span><div class="paper back"><div class="paper-heading"></div><div class="paper-line"></div><div class="paper-line"></div></div><div class="paper front"><div class="paper-heading"></div><div class="paper-line"></div><div class="paper-line short"></div><span class="paper-mark">✧</span><div class="paper-line short"></div></div><span class="art-chip one">▤ 笔记，不只属于一个人</span><span class="art-chip two">✓ 让经验有迹可循</span></div></section><section class="intro-strip" aria-label="资料库概览"><div class="intro-stat"><strong>${courses.length}</strong> 门课程</div><div class="intro-stat"><strong>${config.documentCount}</strong> 组文档资料</div><div class="intro-stat"><strong>${courses.reduce((n,c)=>n+(c.fileCount||0),0)}</strong> 个源文件</div><span class="strip-note">每一次分享，都让这座资料库更完整。</span></section>`}
-    <div class="content-layout"><section id="course-library"><div class="section-title"><div><h2>${savedOnly?'已收藏的课程':'发现你的下一门课'}</h2><p>按课程找到资料，带着经验开始学习。</p></div><button class="text-button" id="clear-filters">重置筛选</button></div><div class="searchbox"><span aria-hidden="true">⌕</span><input id="course-search" type="search" aria-label="搜索课程" placeholder="搜索课程名称、学院、课程代码或关键词…" value="${esc(query)}"></div><div class="filters" aria-label="课程筛选">${['全部课程',...new Set(courses.map(c=>c.category))].map(t=>`<button class="filter ${filter===t?'selected':''}" data-filter="${t}" aria-pressed="${filter===t}">${t}</button>`).join('')}<select class="college-select" id="college-filter" aria-label="按学院筛选"><option value="">所有学院</option>${[...new Set(courses.map(c=>c.college))].map(t=>`<option ${college===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div><div id="course-results" aria-live="polite"></div></section>${sidebar()}</div><section class="bottom-banner"><div><h3>没有找到你的课程？一起把它加进来。</h3><p>这份资料库属于每一个愿意分享的同学。</p></div><button class="button secondary" data-contribute="feedback">建议新增课程 ↗</button></section></div>`;
-    document.querySelector('.notice').insertAdjacentHTML('beforeend', `<br><a class="text-button" href="https://github.com/${esc(config.sourceRepository)}" target="_blank" rel="noopener noreferrer">查看资料来源仓库 ↗</a>`);
-    document.querySelector('#course-search').addEventListener('input', e => { query = e.target.value; renderResults(savedOnly); });
-    document.querySelector('#college-filter').addEventListener('change', e => { college = e.target.value; renderResults(savedOnly); });
-    document.querySelector('#clear-filters').onclick = () => { query='';filter='全部课程';college='';home(savedOnly); };
-    document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{ filter=b.dataset.filter; document.querySelectorAll('[data-filter]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});renderResults(savedOnly); });
-    renderResults(savedOnly);
+  function updateCourseOptions(){const selected=form.elements.course.value;form.elements.course.innerHTML='<option value="">选择课程</option>'+courses.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');if(courses.some(c=>c.id===selected))form.elements.course.value=selected;}
+  function openForm(kind){
+    mode=kind;form.reset();document.querySelector('#submission-result').hidden=true;
+    document.querySelector('#dialog-title').textContent=kind==='course'?'添加课程':kind==='resource'?'分享资料链接':'写经验';
+    document.querySelector('#course-select-field').hidden=kind==='course';form.elements.course.required=kind!=='course';
+    document.querySelector('#course-name-field').hidden=kind!=='course';form.elements.name.required=kind==='course';
+    document.querySelector('#url-field').hidden=kind!=='resource';form.elements.url.required=kind==='resource';
+    document.querySelector('#context-fields').hidden=kind!=='experience';document.querySelector('#context-fields').open=false;
+    form.elements.content.required=kind==='experience';form.elements.content.minLength=kind==='experience'?2:0;
+    document.querySelector('#content-label').textContent=kind==='experience'?'你的经验':kind==='course'?'课程简介（可选）':'一句说明（可选）';
+    form.elements.content.placeholder=kind==='experience'?'学习建议、授课方式、考核要求，都可以写在这里。':kind==='course'?'这门课学什么？也可以先留空。':'这份资料有什么用？';
+    updateCourseOptions();form.elements.course.value=currentCourse?.id||'';dialog.showModal();
   }
-  function renderResults(savedOnly) {
-    const needle=query.trim().toLocaleLowerCase();
-    const found=courses.filter(c=>(!savedOnly||bookmarks.has(c.id))&&(filter==='全部课程'||c.category===filter)&&(!college||c.college===college)&&[c.name,c.code,c.college,c.category,...c.tags,...c.resources.map(r=>r.title)].join(' ').toLocaleLowerCase().includes(needle));
-    document.querySelector('#course-results').innerHTML=`<p class="result-count">共找到 ${found.length} 门课程</p>${found.length?`<div class="course-grid">${found.map(card).join('')}</div><div class="library-end">${savedOnly?'收藏伴你慢慢积累':'已经看到全部课程 · 更多内容等你一起补充'}</div>`:`<div class="empty"><h2>${savedOnly&&!bookmarks.size?'还没有收藏课程':'暂时没有匹配的课程'}</h2><p>${savedOnly&&!bookmarks.size?'点击课程卡片上的星标，将它放上你的资料架。':'试试其他关键词，或重置学院与课程类别筛选。'}</p><a class="button secondary" href="#/">浏览全部课程</a></div>`}`;
+  function draft(){
+    const c=courses.find(c=>c.id===form.elements.course.value);
+    const name=(mode==='course'?form.elements.name.value:c?.name||'').trim(),content=form.elements.content.value.trim(),teacher=form.elements.teacher.value.trim(),semester=form.elements.semester.value.trim();
+    const label=mode==='course'?'新增课程':mode==='resource'?'分享资料':'修课经验';
+    const title=mode==='course'?name:content.split('\n')[0].slice(0,60)||(mode==='resource'?name+'资料链接':'修课经验');
+    const url=mode==='resource'?community.safeLink(form.elements.url.value):'';
+    return {name,content,teacher,semester,url,kind:mode,courseId:c?.id||'',startedAt:Date.now(),title:`[${label}] ${title}`,body:`## ${label}\n\n- 课程：${name}\n${c?'- 课程ID：'+c.id+'\n':''}${mode==='experience'?'- 授课教师：'+(teacher||'未注明')+'\n- 学期：'+(semester||'未注明')+'\n- 内容包含：学习方法、授课与考核\n':''}${mode==='resource'?'- 链接：'+url+'\n':''}\n## 具体内容\n\n${content}\n`};
   }
-  function detail(c) {
-    currentCourse=c;
-    main.innerHTML=`<div class="container"><div class="breadcrumbs"><a href="#/">发现课程</a><span>/</span><span>${esc(c.name)}</span></div><section class="detail-hero"><div class="detail-heading"><span class="course-icon ${c.color}">${c.icon}</span><div><h1>${esc(c.name)}</h1><div class="course-meta">${esc(c.code)} · ${esc(c.college)} · ${esc(c.category)} · ${c.credits == null ? '学分未提供' : c.credits + ' 学分'}</div></div></div><p class="detail-description">${esc(c.description)}</p><div class="detail-actions"><button class="button primary" data-contribute="resource">＋ 分享课程资料</button><button class="button secondary" data-save="${c.id}" aria-pressed="${bookmarks.has(c.id)}">${bookmarks.has(c.id)?'★ 已收藏':'☆ 收藏课程'}</button></div></section><div class="sample-note">资料来自 NWAFU-coursework-experimental-report，原仓库由多位同学共同贡献。原始作业未提供统一授课信息；同学补充的教师、学期和考核经历见下方修课记录。</div><div class="tabbar" role="tablist" aria-label="课程内容">${[['overview','课程介绍'],['resources',`学习资料 ${c.resources.length}`],['experiences',`修课经验 ${c.experiences.length}`],['questions',`课程问答 ${c.questions.length}`]].map(([id,title])=>`<button role="tab" id="tab-${id}" aria-controls="detail-content" aria-selected="${activeTab===id}" tabindex="${activeTab===id?'0':'-1'}" class="${activeTab===id?'active':''}" data-tab="${id}">${title}</button>`).join('')}</div><div class="detail-layout"><section id="detail-content" role="tabpanel" aria-labelledby="tab-${activeTab}"></section><aside><section class="side-panel"><h3>课程信息</h3><dl class="info-list"><dt>课程代码</dt><dd>${esc(c.code)}</dd><dt>先修基础</dt><dd>${esc(c.prerequisites)}</dd><dt>学习投入</dt><dd>${esc(c.workload)}</dd><dt>内容性质</dt><dd>公开仓库课程资料</dd></dl></section><section class="side-panel green-panel"><h3>这门课，你也上过？</h3><p>你的学习方法、踩坑记录和复习建议，都能帮助下一位同学。</p><button class="button" data-contribute="experience">写一篇修课经验</button></section><button class="text-button" data-contribute="feedback">发现内容错误？提交反馈 ↗</button></aside></div></div>`;
-    document.querySelectorAll('[data-tab]').forEach(b=>{b.onclick=()=>setTab(b.dataset.tab);b.onkeydown=e=>{const list=[...document.querySelectorAll('[data-tab]')];let idx=list.indexOf(b);if(e.key==='ArrowRight')idx=(idx+1)%list.length;else if(e.key==='ArrowLeft')idx=(idx+list.length-1)%list.length;else if(e.key==='Home')idx=0;else if(e.key==='End')idx=list.length-1;else return;e.preventDefault();list[idx].focus();setTab(list[idx].dataset.tab);};});
-    renderTab(c);
-  }
-  function setTab(id) { activeTab=id;document.querySelectorAll('[data-tab]').forEach(x=>{const on=x.dataset.tab===id;x.classList.toggle('active',on);x.setAttribute('aria-selected',String(on));x.tabIndex=on?0:-1;});document.querySelector('#detail-content').setAttribute('aria-labelledby',`tab-${id}`);renderTab(currentCourse); }
-  function renderTab(c) {
-    const target=document.querySelector('#detail-content');
-    if(activeTab==='overview') target.innerHTML=communityToolbar()+`<article class="reading-panel"><h2>课程资料概览</h2><p>${esc(c.overview)}</p>${c.sourceUrl?`<a class="button secondary compact" href="${esc(c.sourceUrl)}" target="_blank" rel="noopener noreferrer">浏览原仓库课程目录 ↗</a>`:''}<h3>开始之前</h3><p>${esc(c.prerequisites)}</p>${teachingReferences(c)}<h3>建议的学习方式</h3><p>结合课程大纲安排学习，用资料辅助理解，保留自己的实验记录和错题。不同学期要求可能变化，请核对授课信息。</p></article>`;
-    if(activeTab==='resources') target.innerHTML=c.resources.map((r,i)=>`<article class="reading-panel"><div class="resource-row"><span class="file-icon">${esc(r.format)}</span><div class="resource-body"><h3>${esc(r.title)}</h3><span class="tag">${esc(r.kind)}</span><p>${esc(r.description)}</p><div class="resource-source">来源：${esc(r.source)}<br>分享权限：${esc(r.permission)}<br>适用：${esc(c.semester)} · ${esc(c.teacher)}</div><div class="resource-bottom"><a class="button secondary compact" href="${esc(r.url)}" ${r.local?'download':'target="_blank" rel="noopener noreferrer"'}>${r.local?'下载笔记 ↓':r.format==='DIR'?'浏览完整目录 ↗':'查看原始文件 ↗'}</a>${(r.variants||[]).map(v=>`<a class="button secondary compact" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc(v.format)} 格式 ↗</a>`).join('')}<button class="text-button" data-feedback="${i}">报告失效 / 纠错</button></div></div></div></article>`).join('');
-    if(activeTab==='experiences') target.innerHTML=communityToolbar()+(c.experiences.length?'':`<div class="empty"><h2>修课经验，等你补上</h2><p>仓库提供了作业与报告，尚未收录注明教师、学期的个人修课经验。</p></div>`)+c.experiences.map(e=>experienceCard(e,c)).join('')+`<button class="button secondary" data-contribute="experience">＋ 分享我的修课经验</button>`;
-    if(activeTab==='questions') target.innerHTML=(c.questions.length?c.questions.map(q=>{const key=c.id+'/'+q.id;return `<article class="reading-panel"><h2>${esc(q.title)}</h2><div class="experience-meta">${esc(c.semester)} · ${esc(c.teacher)} · 课程问答</div><div class="answer"><span class="small-label">${esc(q.author)}的回答</span><p>${esc(q.answer)}</p></div><div class="answer-actions"><button class="text-button" data-helpful="${key}" aria-pressed="${helpful.has(key)}">${helpful.has(key)?'✓ 已标记有帮助':'♡ 对我有帮助'}</button><button class="text-button" data-answer="${esc(q.title)}">补充回答</button></div></article>`;}).join(''):`<div class="empty"><h2>好问题，是学习的开始</h2><p>这门课还没有收录问答，欢迎提出你的第一个问题。</p></div>`)+`<button class="button primary" data-contribute="question">＋ 提出课程问题</button>`;
-  }
-  function guide() {currentCourse=null;main.innerHTML=`<div class="guide"><span class="hero-kicker">一份可以接力的校园资料库</span><h1>把你的经验，留给下一位同学。</h1><p class="detail-description">课间以课程为中心，收集可追溯的学习资料与修课经验。任何人都能浏览；贡献内容通过 GitHub 提交，由维护者审核。</p><section class="reading-panel"><h2>怎样贡献内容</h2><ol><li>找到课程，点击「分享课程资料」「写一篇修课经验」或「提出课程问题」。</li><li>填写标题、教师、学期和具体内容。资料请补充来源、原始链接与分享权限。</li><li>生成投稿文稿。配置仓库后，可打开已预填内容的 GitHub Issue，登录 GitHub 后提交。</li><li>修课经验提交后切回本页，网站自动检查并展示；也可点击「刷新课程投稿」。维护者投稿和带「已收录」标签的记录可用于授课参考，其他记录标为待核实。</li></ol><button class="button primary" data-contribute="experience">开始贡献</button></section><section class="reading-panel"><h2>分享什么，会更有帮助？</h2><p>你原创的知识梳理、实验排错记录、公开资料链接，以及注明学期与教师的学习经历。经验可以描述课堂节奏、学习投入、作业形式和复习方法。</p><p>避免以偏概全，不进行教师评分和排名。不上传未经许可的课件、个人信息和未公开试题。链接失效或内容过期，可通过课程页面提交反馈。</p></section><section class="reading-panel"><h2>当前版本的协作方式</h2><p>网站是可部署到 GitHub Pages 的静态资料库。收藏和「有帮助」标记只保存在当前浏览器，不作为全站统计。网页不提供站内注册或在线文件上传。修课投稿从公开 GitHub Issue 读取，未收录的记录单独标注；网络不可用时保留网站发布时的记录。</p><p>${repository?`协作仓库：<a class="text-button" href="https://github.com/${repository}" target="_blank" rel="noopener noreferrer">${esc(repository)} ↗</a>`:'维护者尚未配置 GitHub 仓库。你仍可生成并下载投稿文稿；仓库配置完成后即可在线提交。'}</p><p>维护者在 <code>data/courses.js</code> 设置 <code>SITE_CONFIG.repository</code>，并维护课程数据。新课程建议、问答补充和纠错均通过 Issue 审核处理。</p></section></div>`;}
-  function route() {
-    const path=location.hash.replace(/^#/, '')||'/';activeTab='overview';
-    document.querySelectorAll('[data-nav]').forEach(x=>x.classList.toggle('active',x.dataset.nav===(path==='/bookmarks'?'bookmarks':path==='/guide'?'guide':'home')));
-    if(path==='/'||path==='/bookmarks') home(path==='/bookmarks');
-    else if(path==='/guide')guide();
-    else if(path.startsWith('/course/')){const c=courses.find(c=>c.id===path.slice(8));if(c)detail(c);else notFound();}
-    else if(path==='course-library'){home();requestAnimationFrame(()=>document.querySelector('#course-library').scrollIntoView());return;}
-    else notFound();
-    document.title=currentCourse?`${currentCourse.name} · 课间`:`${path==='/bookmarks'?'我的收藏':path==='/guide'?'共建指南':'发现课程'} · 课间`;
-    window.scrollTo(0,0);updateCount();
-  }
-  function notFound(){currentCourse=null;main.innerHTML='<div class="guide"><div class="empty"><h1>这门课还没收录</h1><p>链接可能已变更，回到资料库找找看。</p><a href="#/" class="button primary">返回课程资料库</a></div></div>';}
-  form.elements.course.innerHTML='<option value="general">其他 / 建议新增课程</option>'+courses.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  function openContribution(type='experience',title='') {
-    form.reset();form.elements.type.value=type;form.elements.course.value=currentCourse?.id||'general';form.elements.title.value=title;
-    form.elements.url.required=type==='resource';form.elements.source.required=type==='resource';document.querySelector('#experience-topics').hidden=type!=='experience';
-    document.querySelector('#resource-fields').hidden=type!=='resource';document.querySelector('#submission-result').hidden=true;
-    dialog.showModal();
-  }
-  function draft() {
-    const d=new FormData(form);const c=courses.find(c=>c.id===d.get('course'));const type=form.elements.type.selectedOptions[0].textContent;
-    return {title:`[${type}] ${d.get('title')}`,body:`## ${type}\n\n- 课程：${c?c.name:'其他 / 建议新增课程'}\n- 学期：${d.get('semester')}\n- 授课教师：${d.get('teacher')}\n${d.get('type')==='experience'?'- 内容包含：'+(d.getAll('topic').join('、')||'学习方法')+'\n':''}\n## 具体内容\n\n${d.get('content')}\n${d.get('type')==='resource'?`\n## 资料信息\n\n- 链接：${d.get('url')}\n- 来源：${d.get('source')}\n- 分享权限：${d.get('permission')}\n`:''}\n---\n由课间投稿表单生成，待维护者审核。\n`};
-  }
-  function validate() {const resource=form.elements.type.value==='resource';form.elements.url.required=resource;form.elements.source.required=resource;return form.reportValidity();}
-  form.elements.type.onchange=()=>{document.querySelector('#experience-topics').hidden=form.elements.type.value!=='experience';document.querySelector('#resource-fields').hidden=form.elements.type.value!=='resource';form.elements.url.required=form.elements.type.value==='resource';form.elements.source.required=form.elements.type.value==='resource';document.querySelector('#submission-result').hidden=true;};
-  form.addEventListener('input',()=>{document.querySelector('#submission-result').hidden=true;});
-  form.onsubmit=e=>{e.preventDefault();if(!validate())return;const d=draft();const result=document.querySelector('#submission-result');result.hidden=false;result.innerHTML=`<strong>文稿已生成，还需打开 GitHub 并点击 Create 完成提交。</strong><textarea aria-label="投稿 Markdown 文稿" readonly></textarea><p>${form.elements.type.value==='experience'?'提交后切回本页会自动检查；读到新投稿后自动打开课程经验。也可点击「刷新课程投稿」。待核实投稿不直接作为授课参考。':'资料、问答与纠错由维护者处理，提交后请保留 GitHub 投稿记录。'}</p><button class="button secondary compact" id="copy-draft" type="button">复制文稿</button> ${repository?`<a id="github-submit" class="button primary compact" target="_blank" rel="noopener noreferrer">打开 GitHub 投稿 ↗</a>`:'<p>维护者尚未配置协作仓库。可复制或下载文稿，交给维护者审核。</p>'}`;result.querySelector('textarea').value=`# ${d.title}\n\n${d.body}`;if(repository)result.querySelector('#github-submit').href=`https://github.com/${repository}/issues/new?title=${encodeURIComponent(d.title)}&body=${encodeURIComponent(d.body)}`;result.querySelector('#copy-draft').onclick=async()=>{try{await navigator.clipboard.writeText(`# ${d.title}\n\n${d.body}`);toast('投稿文稿已复制');}catch{result.querySelector('textarea').select();toast('请按 Ctrl+C 复制已选中的文稿');}};result.scrollIntoView({block:'nearest'});};
-  document.querySelector('#download-draft').onclick=()=>{if(!validate())return;const d=draft();const url=URL.createObjectURL(new Blob([`# ${d.title}\n\n${d.body}`],{type:'text/markdown;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='kejian-contribution.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('投稿文稿已下载，审核后才会发布');};
-  document.querySelector('#header-contribute').onclick=()=>openContribution();document.querySelector('#close-dialog').onclick=()=>dialog.close();
+  form.onsubmit=e=>{
+    e.preventDefault();if(!form.reportValidity())return;
+    const d=draft();
+    if(!d.name){toast('请先选择或填写课程');return;}
+    if(mode==='course'){
+      const existing=courses.find(c=>community.nameKey(c.name)===community.nameKey(d.name));
+      if(existing){dialog.close();location.hash='/course/'+existing.id;toast('这门课已经在列表里，可以直接补充内容。');return;}
+    }
+    if(mode==='resource'&&!d.url){form.elements.url.setCustomValidity('请填写有效的 http 或 https 资料链接');form.elements.url.reportValidity();return;}
+    pending={...d,afterIssue:Math.max(0,...contributions.courses.map(c=>c.number),...contributions.records.map(r=>r.number),...contributions.resources.map(r=>r.number))};try{sessionStorage.setItem('kejian-pending-contribution',JSON.stringify(pending));}catch{}
+    const href=`https://github.com/${repository}/issues/new?title=${encodeURIComponent(d.title)}&body=${encodeURIComponent(d.body)}`;
+    const result=document.querySelector('#submission-result');result.hidden=false;result.innerHTML=`<p>已打开 GitHub。确认提交后切回这里，会自动同步。</p><a href="${esc(href)}" target="_blank" rel="noopener noreferrer">没有打开？点击继续 ↗</a>`;
+    window.open(href,'_blank','noopener,noreferrer');
+  };
+  form.elements.url.oninput=()=>form.elements.url.setCustomValidity('');
+  document.querySelector('#close-dialog').onclick=()=>dialog.close();
+  dialog.onclick=e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}};
   document.addEventListener('click',e=>{
-    if(!e.target.closest('#github-submit'))return;
-    if(form.elements.type.value==='experience' && form.elements.course.value!=='general'){
-      pendingContribution={courseId:form.elements.course.value,title:form.elements.title.value,content:form.elements.content.value,teacher:form.elements.teacher.value,semester:form.elements.semester.value,startedAt:Date.now()};
-      try{sessionStorage.setItem('kejian-pending-contribution',JSON.stringify(pendingContribution));}catch{}
-      toast('请在 GitHub 完成提交，再切回此页；网站会自动检查并显示投稿。');
+    const b=e.target.closest('[data-add-course],[data-write],[data-share],[data-refresh],[data-save],[data-edit]');if(!b)return;
+    if(b.hasAttribute('data-add-course'))openForm('course');
+    if(b.hasAttribute('data-write'))openForm('experience');
+    if(b.hasAttribute('data-share'))openForm('resource');
+    if(b.hasAttribute('data-refresh'))refreshCommunity();
+    if(b.hasAttribute('data-edit'))toast('在 GitHub 原记录右上角「⋯ → Edit」修改并保存，切回后自动同步。需作者或维护者权限。');
+    if(b.hasAttribute('data-save')){
+      const id=b.dataset.save;bookmarks.has(id)?bookmarks.delete(id):bookmarks.add(id);
+      try{localStorage.setItem('kejian-bookmarks',JSON.stringify([...bookmarks]));}catch{}
+      updateCount();if(currentCourse)detail(currentCourse);else renderResults(location.hash==='#/bookmarks');
     }
   });
-  dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
-  document.addEventListener('click',e=>{const b=e.target.closest('[data-refresh-community],[data-save],[data-contribute],[data-feedback],[data-helpful],[data-answer]');if(!b)return;
-    if(b.hasAttribute('data-refresh-community')){refreshCommunity();return;}
-    if(b.hasAttribute('data-save')){const id=b.dataset.save;bookmarks.has(id)?bookmarks.delete(id):bookmarks.add(id);persist('kejian-bookmarks',bookmarks);updateCount();if(currentCourse){b.innerHTML=bookmarks.has(id)?'★ 已收藏':'☆ 收藏课程';b.setAttribute('aria-pressed',String(bookmarks.has(id)));}else{const on=bookmarks.has(id);b.classList.toggle('saved',on);b.textContent=on?'★':'☆';b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',`${on?'取消收藏':'收藏'}${courses.find(c=>c.id===id).name}`);if(location.hash==='#/bookmarks')renderResults(true);}toast(bookmarks.has(id)?'已收藏，保存在当前浏览器':'已取消收藏');}
-    if(b.hasAttribute('data-contribute'))openContribution(b.dataset.contribute);
-    if(b.hasAttribute('data-feedback'))openContribution('feedback',`资料反馈：${currentCourse.resources[Number(b.dataset.feedback)].title}`);
-    if(b.hasAttribute('data-answer'))openContribution('answer',`回答：${b.dataset.answer}`);
-    if(b.hasAttribute('data-helpful')){const key=b.dataset.helpful;helpful.has(key)?helpful.delete(key):helpful.add(key);persist('kejian-helpful',helpful);b.setAttribute('aria-pressed',String(helpful.has(key)));b.textContent=helpful.has(key)?'✓ 已标记有帮助':'♡ 对我有帮助';toast('标记已更新，仅保存在当前浏览器');}
-  });
   function checkOnReturn(){if(document.visibilityState==='visible')refreshCommunity({automatic:true});}
-  window.addEventListener('focus',checkOnReturn);
-  document.addEventListener('visibilitychange',checkOnReturn);
-  window.addEventListener('online',checkOnReturn);
-  setInterval(checkOnReturn,120000);
+  window.addEventListener('focus',checkOnReturn);document.addEventListener('visibilitychange',checkOnReturn);window.addEventListener('online',checkOnReturn);setInterval(checkOnReturn,120000);
   window.addEventListener('hashchange',route);route();loadCommunity();
 })();

@@ -11,6 +11,11 @@ test('legacy experience preserves exact teacher, semester, assessment and source
  assert.equal(record.teacher,'李长悦');assert.equal(record.semester,'2025-2026春季');
  assert.equal(record.accepted,true);assert.equal(record.teaching,true);assert.equal(record.url,'https://github.com/'+repo+'/issues/1');
 });
+test('free text preserves Markdown headings and separators instead of truncating the experience',()=>{
+ const body='第一段\n\n## 考核建议\n\n第二段\n\n---\n\n第三段';
+ const record=parse({...issue,body:'## 修课经验\n\n- 课程：操作系统\n\n## 具体内容\n\n'+body+'\n'},courses,repo);
+ assert.equal(record.body,body);assert.equal(record.teacher,'未注明');
+});
 test('unreviewed and learning-only contributions do not become teaching references',()=>{
  const record=parse({...issue,author_association:'NONE',body:issue.body.replace('- 学期：','- 内容包含：学习方法\n- 学期：')},courses,repo);
  assert.equal(record.accepted,false);assert.equal(record.teaching,false);
@@ -21,4 +26,21 @@ test('reject unrelated, hidden and malformed contributions',()=>{
  assert.equal(parse({...issue,labels:[{name:'不予收录'}]},courses,repo),null);
  assert.equal(parse({...issue,body:issue.body.replace('操作系统','未知课程')},courses,repo),null);
  assert.equal(parse({...issue,title:'[分享资料] 文件',body:'## 资料'},courses,repo),null);
+});
+test('students add courses, and later experiences and resources attach in the same refresh',()=>{
+ const next={...issue,number:2,title:'[新增课程] 计算机图形学',author_association:'NONE',body:'## 新增课程\n\n- 课程：计算机图形学\n\n## 具体内容\n\n图形与几何。\n'};
+ const experience={...issue,number:3,body:issue.body.replace('操作系统','计算机图形学')};
+ const resource={...issue,number:4,title:'[分享资料] 笔记',body:'## 分享资料\n\n- 课程：计算机图形学\n- 链接：https://example.com/notes\n\n## 具体内容\n\n一份笔记。\n'};
+ const data=globalThis.CourseCommunity.collectIssues([resource,experience,next],courses,repo);
+ assert.equal(data.courses.length,1);assert.equal(data.courses[0].accepted,false);
+ assert.equal(data.records[0].courseId,'student-2');assert.equal(data.resources[0].courseId,'student-2');
+ assert.equal(data.resources[0].url,'https://example.com/notes');
+ assert.equal(globalThis.CourseCommunity.collectIssues([{...resource,body:resource.body.replace('https://example.com/notes','javascript:alert(1)')},next],courses,repo).resources.length,0);
+});
+test('duplicate course names merge with existing courses and hidden course is excluded',()=>{
+ const duplicate={...issue,number:3,title:'[新增课程] 操作系统',body:'## 新增课程\n\n- 课程： 操作 系统 \n\n## 具体内容\n\n重复目录\n'};
+ assert.equal(globalThis.CourseCommunity.collectIssues([duplicate],courses,repo).courses.length,0);
+ const next={...duplicate,body:duplicate.body.replace('操作 系统','新课程')};
+ assert.equal(globalThis.CourseCommunity.collectIssues([next,{...next,number:4}],courses,repo).courses.length,1);
+ assert.equal(globalThis.CourseCommunity.collectIssues([{...next,labels:[{name:'隐藏'}]}],courses,repo).courses.length,0);
 });
