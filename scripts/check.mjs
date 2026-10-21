@@ -31,16 +31,17 @@ const community=JSON.parse(await readFile(new URL('../data/community.json',impor
 assert.equal(community.repository,config.repository);
 const allCourses=[...courses,...(community.courses||[])];
 assert.equal(new Set(allCourses.map(c=>c.id)).size,allCourses.length,'课程 ID 不能重复');
-for(const c of community.courses||[]){assert.ok(c.name&&c.id&&c.issueUrl);assert.equal(c.issueUrl,`https://github.com/${config.repository}/issues/${c.number}`);}
+for(const c of community.courses||[]){assert.ok(c.name&&c.id);if(c.issueUrl)assert.equal(c.issueUrl,`https://github.com/${config.repository}/issues/${c.number}`);}
 assert.equal(new Set(community.records.map(r=>r.id)).size,community.records.length,'投稿 ID 不能重复');
 for(const r of community.records){
   assert.ok(allCourses.some(c=>c.id===r.courseId),'投稿必须归属已收录课程');
   assert.ok(r.body&&r.teacher&&r.semester,'投稿应保留正文和教师学期字段');
-  assert.equal(r.url,`https://github.com/${config.repository}/issues/${r.number}`);
+  if(r.url)assert.equal(r.url,`https://github.com/${config.repository}/issues/${r.number}`);
 }
 for(const r of community.resources||[]){
   assert.ok(allCourses.some(c=>c.id===r.courseId));
-  assert.ok(['http:','https:'].includes(new URL(r.url).protocol));
-  assert.equal(r.issueUrl,`https://github.com/${config.repository}/issues/${r.number}`);
+  if(r.uploaded){assert.match(r.downloadPath,/^\/api\/files\/[a-f0-9-]+$/);assert.ok(r.filename&&r.size>0);}
+  else assert.ok(['http:','https:'].includes(new URL(r.url).protocol));
+  if(r.issueUrl)assert.equal(r.issueUrl,`https://github.com/${config.repository}/issues/${r.number}`);
 }
 console.log(`校验通过：${courses.length} 门课程，${config.documentCount} 组文档；来源、版本与文件名一致。`);
