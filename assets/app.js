@@ -10,6 +10,7 @@
   try{const saved=JSON.parse(localStorage.getItem('kejian-bookmarks'));if(Array.isArray(saved))bookmarks=new Set(saved.filter(v=>typeof v==='string'));}catch{}
   let query='',filter='all',currentCourse=null,activeTab='resources',mode='experience',toastTimer;
   let busy=false,loaded=false,lastCheck=0,signature='',syncStatus='正在连接…',editing=null,saving=false;
+  let retryTimer=null,retryCount=0;
 
   function toast(text){const box=document.querySelector('#toast');box.textContent=text;box.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>box.classList.remove('visible'),4500);}
   function updateCount(){document.querySelector('#bookmark-count').textContent=courses.filter(c=>bookmarks.has(c.id)).length;}
@@ -51,10 +52,12 @@
   function route(){
     const raw=location.hash.slice(1)||'/',[path,params='']=raw.split('?');
     const id=path.startsWith('/course/')?path.slice(8):null;
-    const c=id?courses.find(c=>c.id===id):null;
+    const canonicalId=window.COURSE_ALIASES?.[id]||id;
+    const c=id?courses.find(c=>c.id===canonicalId):null;
+    if(c&&c.id!==id)history.replaceState(null,'','#/course/'+c.id+(params?'?'+params:''));
     document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('active',a.dataset.nav===(path==='/bookmarks'?'bookmarks':'home')));
     if(c){const tab=new URLSearchParams(params).get('tab');activeTab=['resources','experiences'].includes(tab)?tab:c.experiences.length?'experiences':'resources';detail(c);}
-    else if(id){currentCourse=null;main.innerHTML=`<div class="container"><div class="empty"><h1>${loaded?'暂时找不到这门课':'正在加载课程…'}</h1><p>${loaded?'课程可能已更名或暂不可见。':'正在读取同学添加的课程。'}</p><a class="button secondary" href="#/">返回课程列表</a></div></div>`;}
+    else if(id){currentCourse=null;main.innerHTML=`<div class="container"><div class="empty"><h1>${loaded?'暂时未能读取这门课':'正在加载课程…'}</h1><p>${loaded?'请重新连接获取最新课程，或返回列表搜索课程名。':'正在读取同学添加的课程，请稍候。'}</p>${syncBar()}<a class="button secondary" href="#/">返回课程列表</a></div></div>`;}
     else home(path==='/bookmarks');
     document.title=(c?c.name:path==='/bookmarks'?'我的收藏':'课程资料与修课经验')+' · 课间';updateCount();window.scrollTo(0,0);
   }
@@ -68,12 +71,13 @@
   }
   async function refreshCommunity({automatic=false}={}){
     if(busy)return false;if(automatic&&Date.now()-lastCheck<15000)return false;
+    clearTimeout(retryTimer);
     busy=true;lastCheck=Date.now();syncStatus='正在同步…';updateSync();
-    try{const data=await service.get();busy=false;loaded=true;syncStatus='已同步';rebuild(data);return true;}
-    catch{busy=false;loaded=true;syncStatus='暂时无法连接，现有内容仍可查看';updateSync();if(!currentCourse&&!document.querySelector('#course-results'))route();return false;}
+    try{const data=await service.get();busy=false;loaded=true;retryCount=0;syncStatus='已同步';rebuild(data);if(!currentCourse&&!document.querySelector('#course-results'))route();return true;}
+    catch{busy=false;loaded=true;syncStatus='未连接到最新内容，当前显示备份';updateSync();if(!currentCourse&&!document.querySelector('#course-results'))route();if(retryCount<3){retryTimer=setTimeout(()=>refreshCommunity(),[3000,10000,30000][retryCount++]);}return false;}
   }
   async function loadCommunity(){
-    try{const response=await fetch('data/community.json',{cache:'no-store'});if(response.ok){const data=await response.json();loaded=true;rebuild(data);}}catch{}
+    try{const response=await fetch('data/community.json',{cache:'no-store'});if(response.ok){const data=await response.json();rebuild(data);}}catch{}
     await refreshCommunity();
   }
 

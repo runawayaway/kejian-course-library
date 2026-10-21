@@ -1,6 +1,27 @@
 {
   "repository": "runawayaway/kejian-course-library",
-  "courses": [],
+  "courses": [
+    {
+      "id": "60c8ae59-3fe9-4142-b58c-277c39fd241e",
+      "name": "高等数学",
+      "description": "同学添加的课程，欢迎补充资料与经验。",
+      "college": "同学新增课程",
+      "sourceType": "community",
+      "resources": [],
+      "experiences": [],
+      "tags": [],
+      "status": "同学共建",
+      "accepted": false,
+      "kind": "course",
+      "courseId": "60c8ae59-3fe9-4142-b58c-277c39fd241e",
+      "version": 1,
+      "editable": false,
+      "createdAt": "2026-10-21T16:14:27.549Z",
+      "updatedAt": "2026-10-21T16:14:27.549Z",
+      "size": 0,
+      "filename": null
+    }
+  ],
   "records": [
     {
       "id": "issue-1",
@@ -22,9 +43,31 @@
       "imported": true
     }
   ],
-  "resources": [],
+  "resources": [
+    {
+      "id": "4d79e70b-0175-4eac-8271-3064154e58d9",
+      "courseId": "60c8ae59-3fe9-4142-b58c-277c39fd241e",
+      "title": "高等数学第8版下册.pdf",
+      "description": "",
+      "format": "PDF",
+      "source": "同学上传",
+      "permission": "以原作者说明为准",
+      "status": "同学上传",
+      "accepted": false,
+      "uploaded": true,
+      "downloadPath": "/api/files/4d79e70b-0175-4eac-8271-3064154e58d9",
+      "variants": [],
+      "kind": "resource",
+      "version": 1,
+      "editable": false,
+      "createdAt": "2026-10-21T16:22:48.573Z",
+      "updatedAt": "2026-10-21T16:22:48.573Z",
+      "size": 73704961,
+      "filename": "高等数学第8版下册.pdf"
+    }
+  ],
   "courseOverrides": [],
   "baseEditable": false,
   "admin": false,
-  "syncedAt": "2026-10-21T15:54:51.279Z"
+  "syncedAt": "2026-10-21T16:31:47.624Z"
 }
