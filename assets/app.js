@@ -106,7 +106,7 @@
   }
   function updateCourseOptions(){const selected=form.elements.course.value;form.elements.course.innerHTML='<option value="">选择课程</option>'+courses.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');if(courses.some(c=>c.id===selected))form.elements.course.value=selected;}
   function openForm(kind){
-    mode=kind;form.reset();document.querySelector('#submission-result').hidden=true;
+    mode=kind;form.reset();form.elements.url.setCustomValidity('');document.querySelector('#submission-result').hidden=true;
     document.querySelector('#dialog-title').textContent=kind==='course'?'添加课程':kind==='resource'?'分享资料链接':'写经验';
     document.querySelector('#course-select-field').hidden=kind==='course';form.elements.course.required=kind!=='course';
     document.querySelector('#course-name-field').hidden=kind!=='course';form.elements.name.required=kind==='course';
