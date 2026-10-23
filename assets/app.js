@@ -122,14 +122,14 @@
     const button=form.querySelector('[type=submit]'),oldLabel=button.textContent;button.disabled=true;button.textContent=mode==='resource'?'正在上传…':'正在保存…';saving=true;
     const result=document.querySelector('#submission-result');result.hidden=true;
     try{
-      const saved=await service.save(data,file);const next={...contributions};
+      const saved=await service.save(data,file,percent=>{const progress=document.querySelector('#upload-progress');progress.hidden=false;progress.value=percent;button.textContent=percent<100?'正在上传 '+percent+'%':'正在保存…';});const next={...contributions};
       const collection=mode==='course'?(baseCourses.some(c=>c.id===saved.id)?'courseOverrides':'courses'):mode==='experience'?'records':'resources';
       next[collection]=[...(next[collection]||[]).filter(r=>r.id!==saved.id),saved.record];rebuild(next);
       dialog.close();const tab=mode==='resource'?'resources':'experiences';const destination='#/course/'+saved.courseId+'?tab='+tab;
       if(location.hash===destination){activeTab=tab;detail(courses.find(c=>c.id===saved.courseId));}else location.hash=destination;
       toast(editing?'修改已保存':mode==='resource'?'文件已上传，可以直接下载':'已保存，其他同学也能看到');await refreshCommunity();
     }catch(error){result.hidden=false;result.textContent=error.message||'保存失败，请稍后重试';}
-    finally{saving=false;button.disabled=false;button.textContent=oldLabel;}
+    finally{saving=false;button.disabled=false;button.textContent=oldLabel;document.querySelector('#upload-progress').hidden=true;}
   };
 
   document.querySelector('#close-dialog').onclick=()=>dialog.close();

@@ -33,11 +33,15 @@
 
 `npm run sync:community` 从公开接口更新 `data/community.json`。它是公开元数据快照，不能代替完整备份，不含私人反馈、修改历史和上传文件本体。应在确认没有临时测试内容时导出快照，再发布前端。
 
-完整交接需包含：前端仓库、Sites 后端源代码仓库及项目权限、D1 数据库导出、R2 上传文件备份，以及私有管理凭据。当前公开前端仓库忽略 `sites-api/`，单独克隆前端不能恢复整个服务。数据库和文件的导出、恢复必须在有对应存储管理权限的环境实际演练，不把“保存了网页代码”当成备份完成。
+线上版完整交接需包含：前端仓库、Sites 后端源代码仓库及项目权限、D1 数据库导出、R2 上传文件备份，以及私有管理凭据。公开仓库忽略 `sites-api/`，另含可独立运行的 `server/` 后端；克隆仓库能新建容器版，但不会自动恢复线上现有数据。
+
+容器版使用 `npm run container:backup` 备份 PostgreSQL 和上传文件卷，恢复命令为 `node scripts/stack-backup.mjs restore 备份目录 --replace`。备份会短暂停止投稿服务，生成数据库转储、文件归档及 SHA-256 校验清单。保管好 `.env.container`，恢复前先备份当前状态，只使用自己生成的可信备份。
 
 ## 本地容器版的范围
 
-当前 `compose.yaml` 运行 Nginx 前端，连接独立的托管 API。它体现镜像、端口映射、目录挂载、健康检查和重启策略。后端与数据库完整容器化仍需适配，课程报告中应与线上托管架构分别说明。
+当前 `compose.yaml` 完整运行 Nginx、Node.js API、PostgreSQL。网页运行配置由 Nginx 改为同源接口，API 使用 PostgreSQL 和文件数据卷，不依赖云端 API 完成投稿、查询和管理。数据库仅连接内部网络，不暴露宿主机端口。课件原始来源与 Office 在线预览仍需要外部网络。参见 `CONTAINER_REPORT.md`，课程报告中与线上托管架构分别说明。
+
+修改接口时，应分别在托管版和容器版运行 `scripts/api-check.mjs`、`scripts/community-features-check.mjs`，保持返回字段和权限行为一致。容器版迁移放在 `server/migrations/`；托管版迁移放在 `sites-api/drizzle/`，不要混用数据库迁移。备份和恢复应串行运行。
 
 ## 参考项目
 

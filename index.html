@@ -7,8 +7,8 @@
   <script src="assets/theme.js?v=theme1"></script>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/upload.css"><link rel="stylesheet" href="assets/preview.css?v=preview1">
   <link rel="stylesheet" href="assets/theme.css?v=theme1">
-  <link rel="stylesheet" href="assets/community-ui.css?v=community1">
-  <script src="data/courses.js" defer></script><script src="data/course-aliases.js" defer></script><script src="assets/community.js" defer></script><script src="assets/runtime-config.js?v=upload2" defer></script><script src="assets/data-service.js?v=community1" defer></script><script src="assets/preview.js?v=preview1" defer></script><script src="assets/community-ui.js?v=community1" defer></script><script src="assets/app.js?v=community1" defer></script>
+  <link rel="stylesheet" href="assets/community-ui.css?v=stack1">
+  <script src="data/courses.js" defer></script><script src="data/course-aliases.js" defer></script><script src="assets/community.js" defer></script><script src="assets/runtime-config.js?v=upload2" defer></script><script src="assets/data-service.js?v=stack1" defer></script><script src="assets/preview.js?v=preview1" defer></script><script src="assets/community-ui.js?v=community1" defer></script><script src="assets/app.js?v=stack1" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">跳到主要内容</a>
@@ -30,6 +30,7 @@
       <details id="context-fields"><summary>补充教师与学期（可选）</summary><div class="form-grid"><label>教师<input name="teacher" maxlength="40" placeholder="不清楚可留空"></label><label>学期<input name="semester" maxlength="40" placeholder="例如：2025–2026 春季"></label></div></details>
       <p class="form-note">直接保存到网站，无需 GitHub。本设备发布的内容可直接修改，请只上传有权公开的内容。</p>
       <div class="form-actions"><button class="button primary" type="submit">保存</button></div>
+      <progress id="upload-progress" max="100" aria-label="文件上传进度" hidden></progress>
       <div id="submission-result" role="status" hidden></div>
     </form>
   </dialog>

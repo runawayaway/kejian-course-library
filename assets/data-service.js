@@ -12,9 +12,10 @@
     const result=await response.json().catch(()=>({error:'服务器返回了无效响应'}));
     if(!response.ok)throw Object.assign(new Error(result.error||'保存失败，请稍后再试'),{status:response.status});return result;
   }
+  function upload(path,method,body,onProgress){return new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest();xhr.open(method,base+path);xhr.responseType='json';xhr.timeout=600000;for(const [key,value]of Object.entries(headers()))xhr.setRequestHeader(key,value);xhr.upload.onprogress=e=>{if(e.lengthComputable)onProgress?.(Math.round(e.loaded/e.total*100));};xhr.onload=()=>{const result=xhr.response||{};if(xhr.status>=200&&xhr.status<300)resolve(result);else reject(Object.assign(new Error(result.error||'上传失败，请稍后重试'),{status:xhr.status}));};xhr.onerror=()=>reject(new Error('网络连接中断，文件已保留在表单中，可以重试'));xhr.ontimeout=()=>reject(new Error('上传超时，文件已保留在表单中，可以重试'));xhr.send(body);});}
   window.CourseService={
     base, get:()=>request('/api/contributions'),
-    save:async(data,file)=>{const {id,...metadata}=data;let body,extra={};if(data.kind==='resource'){body=new FormData();body.set('metadata',JSON.stringify(metadata));if(file)body.set('file',file);}else{body=JSON.stringify(metadata);extra={'Content-Type':'application/json'};}return request('/api/entries'+(id?'/'+encodeURIComponent(id):''),{method:id?'PUT':'POST',body,headers:extra});},
+    save:async(data,file,onProgress)=>{const {id,...metadata}=data;let body,extra={};const path='/api/entries'+(id?'/'+encodeURIComponent(id):'');if(data.kind==='resource'){body=new FormData();body.set('metadata',JSON.stringify(metadata));if(file)body.set('file',file);return upload(path,id?'PUT':'POST',body,onProgress);}else{body=JSON.stringify(metadata);extra={'Content-Type':'application/json'};}return request(path,{method:id?'PUT':'POST',body,headers:extra});},
     setAdminKey:key=>{admin=key;try{key?localStorage.setItem('kejian-admin-key',key):localStorage.removeItem('kejian-admin-key');}catch{}},
     remove:id=>request('/api/entries/'+encodeURIComponent(id),{method:'DELETE'}),
     moderate:(id,data)=>request('/api/moderation/'+encodeURIComponent(id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}),

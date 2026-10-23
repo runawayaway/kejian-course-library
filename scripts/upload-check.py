@@ -14,6 +14,8 @@ with sync_playwright() as p:
         page.goto(front+'/#/course/operating-systems')
         expect(page.locator('.sync-bar [role=status]')).to_have_text('已同步',timeout=30000)
         key=page.evaluate('localStorage.getItem("kejian-device-key")')
+        if os.getenv('REQUIRE_PROGRESS')=='1':
+            page.evaluate('window.uploadEvents=[];new MutationObserver(()=>window.uploadEvents.push(document.querySelector("#upload-progress").value)).observe(document.querySelector("#upload-progress"),{attributes:true,attributeFilter:["value","hidden"]})')
         page.get_by_role('button',name='上传资料',exact=True).click()
         page.locator('[name=file]').set_input_files({'name':'large-upload-check.pdf','mimeType':'application/pdf','buffer':payload})
         with page.expect_response(lambda r:r.url==api+'/api/entries' and r.request.method=='POST',timeout=180000) as saved:
@@ -23,6 +25,7 @@ with sync_playwright() as p:
         assert record['size']==len(payload)
         download=context.request.get(api+record['downloadPath'],timeout=180000)
         assert download.ok and download.body()==payload
+        if os.getenv('REQUIRE_PROGRESS')=='1':assert 100 in page.evaluate('window.uploadEvents')
         print('PASS: published UI accepted an 11 MiB file; persisted size and downloaded bytes match.')
     finally:
         if key:

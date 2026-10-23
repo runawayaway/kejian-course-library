@@ -1,10 +1,52 @@
-name: kejian
+name: kejian-course-lab
 services:
   web:
     build: .
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - "${WEB_PORT:-8096}:80"
     restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+        restart: true
+    networks: [frontend]
     volumes:
-      - ./data:/usr/share/nginx/html/data:ro
       - ./materials:/usr/share/nginx/html/materials:ro
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      DATABASE_URL: postgresql://kejian:${DB_PASSWORD:?请先运行 npm run container:init}@db:5432/kejian
+      ADMIN_KEY: ${CONTAINER_ADMIN_KEY:?请先运行 npm run container:init}
+      UPLOAD_DIR: /var/lib/kejian/files
+    volumes:
+      - uploaded_files:/var/lib/kejian/files
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [frontend, backend]
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kejian
+      POSTGRES_USER: kejian
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?请先运行 npm run container:init}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U kejian -d kejian']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+networks:
+  frontend:
+  backend:
+    internal: true
+volumes:
+  postgres_data:
+  uploaded_files:

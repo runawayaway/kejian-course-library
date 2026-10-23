@@ -4,3 +4,5 @@ artifacts/
 .DS_Store
 sites-api/
 .env*
+.local-files/
+backups/

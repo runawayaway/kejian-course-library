@@ -1,0 +1,24 @@
+{
+  "repository": "runawayaway/kejian-course-library",
+  "syncedAt": "2026-10-21T14:26:49.018Z",
+  "courses": [],
+  "records": [
+    {
+      "id": "issue-1",
+      "number": 1,
+      "author": "runawayaway",
+      "createdAt": "2026-10-20T12:26:23Z",
+      "updatedAt": "2026-10-20T12:26:23Z",
+      "url": "https://github.com/runawayaway/kejian-course-library/issues/1",
+      "accepted": true,
+      "status": "维护者投稿",
+      "courseId": "operating-systems",
+      "title": "课程所占学分",
+      "body": "课程成绩组成为平时：期末为3:7，三学分",
+      "teacher": "李长悦",
+      "semester": "2025-2026春季",
+      "teaching": true
+    }
+  ],
+  "resources": []
+}

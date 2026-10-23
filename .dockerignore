@@ -1,6 +1,11 @@
 .git
 .github
 node_modules
+**/node_modules
+sites-api
+.env*
+.local-files
+backups
 artifacts
 scripts
 *.md

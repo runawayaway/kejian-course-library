@@ -20,7 +20,7 @@
 
 文件服务：https://kejian-contributions.milkycod4096.chatgpt.site
 
-后端源代码位于 `sites-api/`，由 Sites 的独立源仓库管理，包含数据库迁移，不纳入前端仓库。管理密钥由服务端环境变量保存。
+线上托管后端位于 `sites-api/`，由 Sites 独立源仓库管理。公开仓库新增 `server/` 独立后端，使用 Node.js、PostgreSQL 和本地文件卷，具备相同的投稿、恢复、反馈和核实接口。两种部署使用各自的数据和私有配置，管理密钥不写入源代码。
 
 原有资料来自 [NWAFU-coursework-experimental-report](https://github.com/runawayaway/NWAFU-coursework-experimental-report)：23 个课程目录、120 组文档、488 个底层文件，保留原始来源链接。原作者说明和使用权限以源仓库为准；未经核实的教师、学分、考核信息不做推断。原操作系统修课经验已保留。
 
@@ -56,4 +56,24 @@ npm run deploy
 
 main 保存前端源代码，`deploy` 校验后将网页推送到 gh-pages；Pages 从 gh-pages 根目录发布。后端通过 Sites 的源代码打包、保存版本和部署流程独立发布，保留同一项目和数据库迁移。
 
-也可运行 `docker compose up -d --build`，访问 http://localhost:8080。Docker 仅托管前端，投稿连接独立服务；可用 `WEB_PORT` 调整端口。
+## 完整容器部署
+
+```sh
+npm run container:up
+```
+
+访问 http://localhost:8096。命令首次生成被 Git 忽略的 `.env.container`，再构建并启动 Nginx、Node.js API、PostgreSQL 三个容器。网页通过同源 `/api` 访问本地后端，不调用云端投稿服务。数据库和新上传文件分别保存在命名卷中；原始课程资料仍保留 GitHub 来源链接，Office 预览仍依赖外部服务。
+
+可在 `.env.container` 修改 `WEB_PORT`。容器版管理密钥为其中的 `CONTAINER_ADMIN_KEY`，与线上管理密钥独立。容器版从原始课程索引和旧经验开始，线上后来新增的内容不会自动复制到本地数据库。
+
+```sh
+docker compose --env-file .env.container ps
+docker compose --env-file .env.container logs api
+npm run container:backup
+node scripts/stack-backup.mjs restore 备份目录 --replace
+npm run container:down
+```
+
+备份会短暂停止 API，以保持数据库与文件一致，然后自动启动 API。恢复会替换目标容器项目的数据，先备份当前状态，只使用本项目生成的可信备份。`container:down` 保留数据卷，不要加 `-v` 删除卷。
+
+`npm run container:drill` 对隔离的 `kejian-course-lab` 项目执行重建和备份恢复演练；该操作应在专用实验环境运行。技术架构、验证结果和答辩演示步骤见 [容器课程实验说明](CONTAINER_REPORT.md)。

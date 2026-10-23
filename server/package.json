@@ -1,0 +1,9 @@
+{
+  "name": "kejian-api",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "engines": {"node": ">=22"},
+  "scripts": {"start": "node index.mjs"},
+  "dependencies": {"busboy": "1.6.0", "pg": "8.16.3"}
+}
