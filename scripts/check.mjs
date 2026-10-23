@@ -29,6 +29,7 @@ for(const c of courses){
 assert.equal(config.documentCount,courses.reduce((n,c)=>n+c.resources.filter(r=>r.format!=='DIR').length,0));
 const community=JSON.parse(await readFile(new URL('../data/community.json',import.meta.url),'utf8'));
 assert.equal(community.repository,config.repository);
+assert.equal(community.reports?.length||0,0,'公开快照不能包含私人反馈');
 const allCourses=[...courses,...(community.courses||[])];
 assert.equal(new Set(allCourses.map(c=>c.id)).size,allCourses.length,'课程 ID 不能重复');
 for(const c of community.courses||[]){assert.ok(c.name&&c.id);if(c.issueUrl)assert.equal(c.issueUrl,`https://github.com/${config.repository}/issues/${c.number}`);}

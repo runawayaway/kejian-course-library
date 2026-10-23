@@ -8,7 +8,7 @@
     "sync": "node scripts/sync-coursework.mjs && node scripts/export-community.mjs && npm run check",
     "sync:community": "node scripts/export-community.mjs",
     "deploy": "npm run check && node scripts/publish-pages.mjs",
-    "check": "node --check assets/app.js && node --check assets/preview.js && node --check assets/data-service.js && node --check assets/community.js && node --check data/courses.js && node scripts/check.mjs && node --test scripts/community.test.mjs",
+    "check": "node --check assets/app.js && node --check assets/community-ui.js && node --check assets/theme.js && node --check assets/preview.js && node --check assets/data-service.js && node --check assets/community.js && node --check data/courses.js && node scripts/check.mjs && node --test scripts/community.test.mjs",
     "test:api": "node scripts/api-check.mjs"
   },
   "engines": { "node": ">=18" }

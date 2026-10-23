@@ -7,13 +7,14 @@
   <script src="assets/theme.js?v=theme1"></script>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/upload.css"><link rel="stylesheet" href="assets/preview.css?v=preview1">
   <link rel="stylesheet" href="assets/theme.css?v=theme1">
-  <script src="data/courses.js" defer></script><script src="data/course-aliases.js" defer></script><script src="assets/community.js" defer></script><script src="assets/runtime-config.js?v=upload2" defer></script><script src="assets/data-service.js?v=upload2" defer></script><script src="assets/preview.js?v=preview1" defer></script><script src="assets/app.js?v=sync2" defer></script>
+  <link rel="stylesheet" href="assets/community-ui.css?v=community1">
+  <script src="data/courses.js" defer></script><script src="data/course-aliases.js" defer></script><script src="assets/community.js" defer></script><script src="assets/runtime-config.js?v=upload2" defer></script><script src="assets/data-service.js?v=community1" defer></script><script src="assets/preview.js?v=preview1" defer></script><script src="assets/community-ui.js?v=community1" defer></script><script src="assets/app.js?v=community1" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">跳到主要内容</a>
   <header class="site-header"><div class="header-inner">
     <a href="#/" class="brand" aria-label="课间首页"><span class="brand-icon">课</span><span>课间<span class="brand-sub">西农课程共享</span></span></a>
-    <nav aria-label="主导航"><a href="#/" data-nav="home">全部课程</a><a href="#/bookmarks" data-nav="bookmarks">我的收藏 <span id="bookmark-count">0</span></a></nav>
+    <nav aria-label="主导航"><a href="#/" data-nav="home">全部课程</a><a href="#/bookmarks" data-nav="bookmarks">我的收藏 <span id="bookmark-count">0</span></a><a href="#/mine" data-nav="mine">我的投稿</a></nav>
     <div class="header-actions"><button class="theme-toggle" id="theme-toggle" type="button" aria-label="夜间模式" aria-pressed="false" title="切换到夜间模式"><span data-theme-icon aria-hidden="true">☾</span><span data-theme-label aria-hidden="true">夜间</span></button><button class="button primary compact" data-add-course>＋ 添加课程</button></div>
   </div></header>
   <main id="main" tabindex="-1"></main>
@@ -24,6 +25,7 @@
       <label id="course-select-field">课程<select name="course" required></select></label>
       <label id="course-name-field" hidden>课程名称<input name="name" maxlength="100" placeholder="例如：计算机图形学"></label>
       <label id="file-field" hidden>选择文件<input name="file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.tsv,.txt,.md,.zip,.ipynb,.c,.cpp,.h,.java,.py,.sql,.r,.js,.json"><span class="form-note" id="file-hint">支持文档、表格、代码或 ZIP 文件。</span></label>
+      <label id="category-field" hidden>资料类型<select name="category"><option>其他</option><option>学习笔记</option><option>实验参考</option><option>复习资料</option></select></label>
       <label id="content-field"><span id="content-label">你的经验</span><textarea name="content" rows="5" maxlength="3000" placeholder="学习建议、授课方式、考核要求，都可以写在这里。"></textarea></label>
       <details id="context-fields"><summary>补充教师与学期（可选）</summary><div class="form-grid"><label>教师<input name="teacher" maxlength="40" placeholder="不清楚可留空"></label><label>学期<input name="semester" maxlength="40" placeholder="例如：2025–2026 春季"></label></div></details>
       <p class="form-note">直接保存到网站，无需 GitHub。本设备发布的内容可直接修改，请只上传有权公开的内容。</p>

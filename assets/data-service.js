@@ -16,6 +16,10 @@
     base, get:()=>request('/api/contributions'),
     save:async(data,file)=>{const {id,...metadata}=data;let body,extra={};if(data.kind==='resource'){body=new FormData();body.set('metadata',JSON.stringify(metadata));if(file)body.set('file',file);}else{body=JSON.stringify(metadata);extra={'Content-Type':'application/json'};}return request('/api/entries'+(id?'/'+encodeURIComponent(id):''),{method:id?'PUT':'POST',body,headers:extra});},
     setAdminKey:key=>{admin=key;try{key?localStorage.setItem('kejian-admin-key',key):localStorage.removeItem('kejian-admin-key');}catch{}},
+    remove:id=>request('/api/entries/'+encodeURIComponent(id),{method:'DELETE'}),
+    moderate:(id,data)=>request('/api/moderation/'+encodeURIComponent(id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}),
+    recoveryCode:()=>device,
+    restore:async key=>{if(!/^[a-f0-9]{64}$/.test(key))throw new Error('恢复码应为 64 位字符，请检查是否复制完整');const data=await request('/api/contributions',{headers:{'X-Device-Key':key,'X-Admin-Key':''}});if(![...data.courses,...data.records,...data.resources].some(r=>r.editable))throw new Error('未找到这个恢复码对应的投稿，请检查恢复码');device=key;admin='';try{localStorage.setItem('kejian-device-key',key);localStorage.removeItem('kejian-admin-key');}catch{}return data;},
     fileUrl:path=>base+path
   };
 })();
