@@ -1,6 +1,6 @@
-/* Public document reader; downloaded content is never inserted as HTML. */
+/* Public document reader; Markdown HTML is sanitized before entering the document. */
 (() => {
-  const textFormats=new Set(['TXT','MD','CSV','TSV','IPYNB','C','CPP','H','JAVA','PY','SQL','R','JS','JSON']);
+  const textFormats=new Set(['TXT','MD','MARKDOWN','CSV','TSV','IPYNB','C','CPP','H','JAVA','PY','SQL','R','JS','JSON']);
   const officeFormats=new Set(['DOC','DOCX','PPT','PPTX','XLS','XLSX']);
   let dialog,body,title,download,note,controller,objectUrl,serial=0;
   function fileUrl(value){
@@ -26,6 +26,29 @@
     try{while(true){if(signal.aborted)throw new DOMException('Aborted','AbortError');const part=await reader.read();if(part.done)break;const remaining=1024*1024-size;value+=decoder.decode(part.value.subarray(0,remaining),{stream:true});size+=part.value.length;if(size>1024*1024){truncated=true;await reader.cancel();break;}}value+=decoder.decode();}
     finally{reader.releaseLock();}return {value,truncated};
   }
+  function markdown(value,url){
+    if(!window.marked||!window.DOMPurify)throw new Error('Markdown reader unavailable');
+    const article=document.createElement('article');article.className='markdown-preview';
+    const html=marked.parse(value.replace(/^\uFEFF/,''),{gfm:true,breaks:false,async:false});
+    article.append(DOMPurify.sanitize(html,{
+      RETURN_DOM_FRAGMENT:true,
+      ALLOWED_TAGS:['h1','h2','h3','h4','h5','h6','p','br','hr','strong','em','del','s','blockquote','ul','ol','li','pre','code','a','img','table','thead','tbody','tr','th','td','details','summary','kbd','sup','sub'],
+      ALLOWED_ATTR:['href','src','alt','title','start','colspan','rowspan'],
+      ALLOW_DATA_ATTR:false,ALLOW_ARIA_ATTR:false
+    }));
+    for(const el of article.querySelectorAll('a,img')){
+      const attr=el.tagName==='A'?'href':'src',raw=el.getAttribute(attr);if(!raw)continue;
+      try{
+        const target=new URL(raw,url),allowed=el.tagName==='A'?['https:','http:','mailto:']:['https:','http:'];
+        if(!allowed.includes(target.protocol))throw new Error('Unsafe URL');
+        el.setAttribute(attr,target.href);
+        if(el.tagName==='A'){el.target='_blank';el.rel='noopener noreferrer';}
+        else{el.loading='lazy';el.referrerPolicy='no-referrer';}
+      }catch{el.removeAttribute(attr);}
+    }
+    for(const table of article.querySelectorAll('table')){const scroll=document.createElement('div');scroll.className='markdown-table';table.replaceWith(scroll);scroll.append(table);}
+    return article;
+  }
   async function open(resource){
     initialize();cleanup();const requestId=serial;controller=new AbortController();const signal=controller.signal;
     title.textContent=resource.title||'资料预览';note.textContent='正在加载预览…';body.setAttribute('aria-busy','true');dialog.showModal();
@@ -41,8 +64,10 @@
       const response=await fetch(url,{signal});if(!response.ok)throw new Error('无法读取文件（'+response.status+'）');
       if(textFormats.has(format)){
         const result=await readText(response,signal);if(requestId!==serial)return;
-        const pre=document.createElement('pre');pre.textContent=result.value;body.replaceChildren(pre);
-        note.textContent=result.truncated?'文件较长，预览显示前 1 MB 文本；下载可查看完整内容。':'文本预览';
+        const isMarkdown=format==='MD'||format==='MARKDOWN';
+        if(isMarkdown)body.replaceChildren(markdown(result.value,response.url||url));
+        else{const pre=document.createElement('pre');pre.textContent=result.value;body.replaceChildren(pre);}
+        note.textContent=result.truncated?'文件较长，预览显示前 1 MB 内容；下载可查看完整内容。':isMarkdown?'Markdown 阅读预览':'文本预览';
       }else{
         const blob=await response.blob();if(requestId!==serial)return;
         objectUrl=URL.createObjectURL(new Blob([blob],{type:format==='PDF'?'application/pdf':'image/'+(format==='JPG'?'jpeg':format.toLowerCase())}));

@@ -25,8 +25,8 @@ with sync_playwright() as p:
  assert page.url.endswith('?tab=guides')
  page.reload();expect(page.get_by_role('tab',name='学习指引',exact=True)).to_have_attribute('aria-selected','true')
  page.get_by_role('button',name='阅读完整指引',exact=True).click()
- expect(page.locator('#preview-content pre')).to_contain_text('不是本校学生修课记录')
- expect(page.locator('#preview-content pre')).to_contain_text('https://pages.cs.wisc.edu/~remzi/OSTEP/')
+ expect(page.locator('#preview-content .markdown-preview')).to_contain_text('不是本校学生修课记录')
+ expect(page.locator('#preview-content .markdown-preview')).to_contain_text('https://pages.cs.wisc.edu/~remzi/OSTEP/')
  page.keyboard.press('Escape')
  with page.expect_download() as download:page.get_by_role('link',name='下载中文指引（Markdown）',exact=True).click()
  assert download.value.suggested_filename=='operating-systems.md'
