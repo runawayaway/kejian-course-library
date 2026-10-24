@@ -69,6 +69,7 @@
         else{const pre=document.createElement('pre');pre.textContent=result.value;body.replaceChildren(pre);}
         note.textContent=result.truncated?'文件较长，预览显示前 1 MB 内容；下载可查看完整内容。':isMarkdown?'Markdown 阅读预览':'文本预览';
         if(isMarkdown&&!result.truncated&&resource.courseId)window.CourseMarkdownEditor?.attach({resource,source:result.value,body,heading:dialog.querySelector('.preview-heading'),note,download,render:value=>markdown(value,fileUrl(resource.originalUrl||resource.url))});
+        if(resource.edit)document.querySelector('#edit-markdown')?.click();
       }else{
         const blob=await response.blob();if(requestId!==serial)return;
         objectUrl=URL.createObjectURL(new Blob([blob],{type:format==='PDF'?'application/pdf':'image/'+(format==='JPG'?'jpeg':format.toLowerCase())}));
