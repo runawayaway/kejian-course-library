@@ -45,4 +45,6 @@
 
 ## 参考项目
 
+通用学习指引在 `data/learning-guides.json` 维护，修改后运行 `npm run guides:build` 生成网页数据与 `materials/guides/` 下的 Markdown 文件，再运行 `npm run check`。保留每个来源的作者、入口、语言、权利说明与核对日期；`data/learning-source-checks.json` 记录本次入口核对结果。通用指引与学生真实修课经验分开，不将外校教师、分数或考试规则移植为本校要求；没有转载原站书籍、课件、试题或学生点评。若需要实际转载原文件，必须另行核实具体材料的许可及署名要求。
+
 信息组织借鉴 [USTC 评课社区](https://www.icourse.club/)、[浙江大学课程攻略共享计划](https://github.com/QSCTech/zju-icicles)、[HITSZ 课程攻略共享计划](https://hoa.moe/) 和[拼好课](https://www.pinhaoke.love/)。本项目保持自己的界面与投稿流程，没有复制这些站点的点评或学生个人信息。

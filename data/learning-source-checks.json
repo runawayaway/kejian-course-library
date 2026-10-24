@@ -1,0 +1,156 @@
+{
+  "checkedAt": "2026-10-24T02:07:24.367Z",
+  "method": "读取原站公开页面，核对标题与主题；不代表本校适用性认证",
+  "sources": [
+    {
+      "id": "java",
+      "url": "https://dev.java/learn/",
+      "status": 200,
+      "title": "General Tutorials - Dev.java"
+    },
+    {
+      "id": "shell",
+      "url": "https://missing.csail.mit.edu/2020/",
+      "status": 200,
+      "title": "2020 Lectures &middot; Missing Semester"
+    },
+    {
+      "id": "os",
+      "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/",
+      "status": 200,
+      "title": "Operating Systems: Three Easy Pieces"
+    },
+    {
+      "id": "algorithms",
+      "url": "https://algs4.cs.princeton.edu/home/",
+      "status": 200,
+      "title": "Algorithms, 4th Edition by Robert Sedgewick and Kevin Wayne"
+    },
+    {
+      "id": "db-course",
+      "url": "https://15445.courses.cs.cmu.edu/fall2025/",
+      "status": 200,
+      "title": "CMU 15-445/645 :: Intro to Database Systems (Fall 2025)"
+    },
+    {
+      "id": "sql",
+      "url": "https://www.postgresql.org/docs/current/tutorial.html",
+      "status": 200,
+      "title": "PostgreSQL: Documentation: 18: Part I. Tutorial"
+    },
+    {
+      "id": "docker",
+      "url": "https://docs.docker.com/get-started/",
+      "status": 200,
+      "title": "Get started | Docker Docs"
+    },
+    {
+      "id": "kubernetes",
+      "url": "https://kubernetes.io/docs/concepts/overview/",
+      "status": 200,
+      "title": "Overview | Kubernetes"
+    },
+    {
+      "id": "hdfs",
+      "url": "https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html",
+      "status": 200,
+      "title": "Apache Hadoop 3.3.5 &#x2013; HDFS Architecture"
+    },
+    {
+      "id": "pandas",
+      "url": "https://pandas.pydata.org/docs/user_guide/10min.html",
+      "status": 200,
+      "title": "10 minutes to pandas &#8212; pandas 3.1.0 documentation"
+    },
+    {
+      "id": "missing-data",
+      "url": "https://pandas.pydata.org/docs/user_guide/missing_data.html",
+      "status": 200,
+      "title": "Working with missing data &#8212; pandas 3.1.0 documentation"
+    },
+    {
+      "id": "plotting",
+      "url": "https://matplotlib.org/stable/tutorials/index.html",
+      "status": 200,
+      "title": "Tutorials &#8212; Matplotlib 3.11.2 documentation"
+    },
+    {
+      "id": "openmp",
+      "url": "https://www.openmp.org/resources/tutorials-articles/",
+      "status": 200,
+      "title": "Tutorials &amp; Articles - OpenMP"
+    },
+    {
+      "id": "ml",
+      "url": "https://scikit-learn.org/stable/getting_started.html",
+      "status": 200,
+      "title": "Getting Started &#8212; scikit-learn 1.9.1 documentation"
+    },
+    {
+      "id": "ml-pitfalls",
+      "url": "https://scikit-learn.org/stable/common_pitfalls.html",
+      "status": 200,
+      "title": "12. Common pitfalls and recommended practices &#8212; scikit-learn 1.9.1 documentation"
+    },
+    {
+      "id": "torch",
+      "url": "https://docs.pytorch.org/tutorials/beginner/basics/intro.html",
+      "status": 200,
+      "title": "Learn the Basics — PyTorch Tutorials 2.14.0+cu130 documentation"
+    },
+    {
+      "id": "d2l",
+      "url": "https://zh.d2l.ai/",
+      "status": 200,
+      "title": "《动手学深度学习》 &#8212; 动手学深度学习 2.0.0 documentation"
+    },
+    {
+      "id": "stream-time",
+      "url": "https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/time/",
+      "status": 200,
+      "title": "Timely Stream Processing | Apache Flink"
+    },
+    {
+      "id": "stream-state",
+      "url": "https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/stateful-stream-processing/",
+      "status": 200,
+      "title": "Stateful Stream Processing | Apache Flink"
+    },
+    {
+      "id": "llvm",
+      "url": "https://llvm.org/docs/tutorial/",
+      "status": 200,
+      "title": "LLVM Tutorial: Table of Contents - LLVM"
+    },
+    {
+      "id": "javacc",
+      "url": "https://javacc.github.io/javacc/",
+      "status": 200,
+      "title": "JavaCC | The most popular parser generator for use with Java applications."
+    },
+    {
+      "id": "c4",
+      "url": "https://c4model.com/",
+      "status": 200,
+      "title": "Home | C4 model"
+    },
+    {
+      "id": "calculus",
+      "url": "https://ocw.mit.edu/courses/18-01sc-single-variable-calculus-fall-2010/",
+      "status": 200,
+      "title": "Single Variable Calculus | Mathematics | MIT OpenCourseWare"
+    },
+    {
+      "id": "multivariable",
+      "url": "https://ocw.mit.edu/courses/18-02sc-multivariable-calculus-fall-2010/",
+      "status": 200,
+      "title": "Multivariable Calculus | Mathematics | MIT OpenCourseWare"
+    },
+    {
+      "id": "mpi",
+      "url": "https://docs.open-mpi.org/en/main/launching-apps/quickstart.html",
+      "status": 200,
+      "title": "Quick start: Launching MPI applications — Open MPI documentation"
+    }
+  ]
+}

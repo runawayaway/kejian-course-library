@@ -10,3 +10,4 @@ artifacts
 scripts
 *.md
 !materials/*.md
+!materials/**/*.md
