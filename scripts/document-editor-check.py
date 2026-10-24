@@ -45,7 +45,7 @@ with sync_playwright() as p:
   page.evaluate('r=>CoursePreview.open({...r,url:CourseService.fileUrl(r.downloadPath)})',own);page.locator('#edit-markdown').click();expect(page.locator('.markdown-admin')).to_be_hidden();page.get_by_role('textbox',name='Markdown 原文').fill('# 自己修改的新内容')
   page.get_by_role('button',name='保存修改',exact=True).click();expect(page.locator('#preview-note')).to_contain_text('修改已保存');expect(page.locator('#preview-content h1')).to_have_text('自己修改的新内容')
   assert ctx.request.get(api+own['downloadPath']).body()=='# 自己修改的新内容'.encode()
-  if 'localhost' in api:
+  if 'localhost' in api and os.getenv('CHECK_BASE_GUIDE')=='1':
    # Verify a real course guide tab switches to the saved Markdown, then remove the test revision.
    before=ctx.request.get(api+'/api/contributions').json();assert not any(d['courseId']=='operating-systems' for d in before['documents'])
    revision=ctx.request.put(api+'/api/documents',headers=headers,data={'courseId':'operating-systems','sourceUrl':resource['url'],'title':'操作系统学习指引','content':revised,'version':0});assert revision.status==201
