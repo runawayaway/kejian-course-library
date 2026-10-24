@@ -1,0 +1,74 @@
+{
+  "repository": "runawayaway/kejian-course-library",
+  "courses": [
+    {
+      "id": "60c8ae59-3fe9-4142-b58c-277c39fd241e",
+      "name": "高等数学",
+      "description": "同学添加的课程，欢迎补充资料与经验。",
+      "college": "同学新增课程",
+      "sourceType": "community",
+      "resources": [],
+      "experiences": [],
+      "tags": [],
+      "status": "同学共建",
+      "accepted": false,
+      "kind": "course",
+      "courseId": "60c8ae59-3fe9-4142-b58c-277c39fd241e",
+      "version": 1,
+      "editable": false,
+      "createdAt": "2026-10-21T16:14:27.549Z",
+      "updatedAt": "2026-10-21T16:14:27.549Z",
+      "size": 0,
+      "filename": null
+    }
+  ],
+  "records": [
+    {
+      "id": "issue-1",
+      "number": 1,
+      "author": "runawayaway",
+      "createdAt": "2026-10-20T12:26:23Z",
+      "updatedAt": "2026-10-20T12:26:23Z",
+      "url": "https://github.com/runawayaway/kejian-course-library/issues/1",
+      "accepted": true,
+      "status": "维护者投稿",
+      "courseId": "operating-systems",
+      "title": "课程所占学分",
+      "body": "课程成绩组成为平时：期末为3:7，三学分",
+      "teacher": "李长悦",
+      "semester": "2025-2026春季",
+      "teaching": true,
+      "version": 0,
+      "editable": false,
+      "imported": true
+    }
+  ],
+  "resources": [
+    {
+      "id": "4d79e70b-0175-4eac-8271-3064154e58d9",
+      "courseId": "60c8ae59-3fe9-4142-b58c-277c39fd241e",
+      "title": "高等数学第8版下册.pdf",
+      "description": "",
+      "format": "PDF",
+      "source": "同学上传",
+      "permission": "以原作者说明为准",
+      "status": "同学上传",
+      "accepted": false,
+      "uploaded": true,
+      "downloadPath": "/api/files/4d79e70b-0175-4eac-8271-3064154e58d9",
+      "variants": [],
+      "kind": "resource",
+      "version": 1,
+      "editable": false,
+      "createdAt": "2026-10-21T16:22:48.573Z",
+      "updatedAt": "2026-10-21T16:22:48.573Z",
+      "size": 73704961,
+      "filename": "高等数学第8版下册.pdf"
+    }
+  ],
+  "courseOverrides": [],
+  "reports": [],
+  "baseEditable": false,
+  "admin": false,
+  "syncedAt": "2026-10-23T16:46:23.679Z"
+}
