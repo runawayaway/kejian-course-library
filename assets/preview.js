@@ -11,7 +11,7 @@
     }
     return url.href;
   }
-  function cleanup(){serial++;controller?.abort();controller=null;body?.replaceChildren();if(objectUrl){URL.revokeObjectURL(objectUrl);objectUrl=null;}}
+  function cleanup(){serial++;controller?.abort();controller=null;body?.replaceChildren();document.querySelector('#edit-markdown')?.remove();if(objectUrl){URL.revokeObjectURL(objectUrl);objectUrl=null;}}
   function initialize(){
     if(dialog)return;
     dialog=document.createElement('dialog');dialog.id='preview-dialog';dialog.setAttribute('aria-labelledby','preview-title');
@@ -68,6 +68,7 @@
         if(isMarkdown)body.replaceChildren(markdown(result.value,response.url||url));
         else{const pre=document.createElement('pre');pre.textContent=result.value;body.replaceChildren(pre);}
         note.textContent=result.truncated?'文件较长，预览显示前 1 MB 内容；下载可查看完整内容。':isMarkdown?'Markdown 阅读预览':'文本预览';
+        if(isMarkdown&&!result.truncated&&resource.courseId)window.CourseMarkdownEditor?.attach({resource,source:result.value,body,heading:dialog.querySelector('.preview-heading'),note,download,render:value=>markdown(value,fileUrl(resource.originalUrl||resource.url))});
       }else{
         const blob=await response.blob();if(requestId!==serial)return;
         objectUrl=URL.createObjectURL(new Blob([blob],{type:format==='PDF'?'application/pdf':'image/'+(format==='JPG'?'jpeg':format.toLowerCase())}));
@@ -77,5 +78,5 @@
     }catch(error){if(requestId===serial&&error.name!=='AbortError')note.textContent='预览加载失败，请点击「下载文件」查看。';}
     finally{if(requestId===serial)body.removeAttribute('aria-busy');}
   }
-  window.CoursePreview={open,fileUrl};
+  window.CoursePreview={open,fileUrl,markdown};
 })();

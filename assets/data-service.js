@@ -14,7 +14,8 @@
   }
   function upload(path,method,body,onProgress){return new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest();xhr.open(method,base+path);xhr.responseType='json';xhr.timeout=600000;for(const [key,value]of Object.entries(headers()))xhr.setRequestHeader(key,value);xhr.upload.onprogress=e=>{if(e.lengthComputable)onProgress?.(Math.round(e.loaded/e.total*100));};xhr.onload=()=>{const result=xhr.response||{};if(xhr.status>=200&&xhr.status<300)resolve(result);else reject(Object.assign(new Error(result.error||'上传失败，请稍后重试'),{status:xhr.status}));};xhr.onerror=()=>reject(new Error('网络连接中断，文件已保留在表单中，可以重试'));xhr.ontimeout=()=>reject(new Error('上传超时，文件已保留在表单中，可以重试'));xhr.send(body);});}
   window.CourseService={
-    base, get:()=>request('/api/contributions'),
+    base, get:()=>request('/api/contributions'),hasAdmin:()=>!!admin,
+    saveDocument:data=>request('/api/documents',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}),
     save:async(data,file,onProgress)=>{const {id,...metadata}=data;let body,extra={};const path='/api/entries'+(id?'/'+encodeURIComponent(id):'');if(data.kind==='resource'){body=new FormData();body.set('metadata',JSON.stringify(metadata));if(file)body.set('file',file);return upload(path,id?'PUT':'POST',body,onProgress);}else{body=JSON.stringify(metadata);extra={'Content-Type':'application/json'};}return request(path,{method:id?'PUT':'POST',body,headers:extra});},
     setAdminKey:key=>{admin=key;try{key?localStorage.setItem('kejian-admin-key',key):localStorage.removeItem('kejian-admin-key');}catch{}},
     remove:id=>request('/api/entries/'+encodeURIComponent(id),{method:'DELETE'}),

@@ -10,6 +10,7 @@
     "deploy": "npm run check && node scripts/publish-pages.mjs",
     "check": "node --check assets/app.js && node --check assets/learning-guides-ui.js && node --check assets/community-ui.js && node --check assets/theme.js && node --check assets/preview.js && node --check assets/data-service.js && node --check assets/community.js && node --check data/courses.js && node scripts/build-learning-guides.mjs --check && node scripts/check-learning-guides.mjs && node scripts/check-server.mjs && node scripts/check.mjs && node --test scripts/community.test.mjs",
     "test:api": "node scripts/api-check.mjs",
+    "test:editor": "py scripts/document-editor-check.py",
     "container:init": "node scripts/init-container.mjs",
     "container:up": "node scripts/init-container.mjs && docker compose --env-file .env.container up -d --build --wait",
     "container:down": "docker compose --env-file .env.container down",

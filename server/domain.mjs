@@ -31,12 +31,16 @@ async function readAll(request) {
     const records = seed.records.filter(r => !live.has(r.id)).map(r => ({ ...r, version: 0, editable: who.admin, imported: true }));
     const courses = seed.courses.filter((c) => !live.has(c.id)).map((c) => ({ ...c, version: 0, editable: who.admin }));
     const resources = seed.resources.filter((r) => !live.has(r.id)).map((r) => ({ ...r, version: 0, editable: who.admin }));
-    const courseOverrides = [], reports = [];
+    const courseOverrides = [], reports = [], documents = [];
     for (const row of stored) {
         const d = decorate(row, who);
         if (d.deleted)
             continue;
-        if (row.kind === 'report') {
+        if (row.kind === 'document') {
+            const { content, ...metadata } = d;
+            documents.push(metadata);
+        }
+        else if (row.kind === 'report') {
             if (who.admin)
                 reports.push(d);
         }
@@ -49,7 +53,7 @@ async function readAll(request) {
         else
             courses.push(d);
     }
-    return json({ repository: 'runawayaway/kejian-course-library', courses, records, resources, courseOverrides, reports, baseEditable: who.admin, admin: who.admin });
+    return json({ repository: 'runawayaway/kejian-course-library', courses, records, resources, courseOverrides, reports, documents, baseEditable: who.admin, admin: who.admin });
 }
 async function lookup(id) {
     const row = await database().prepare('SELECT * FROM entries WHERE id=?').bind(id).first();
@@ -246,6 +250,54 @@ async function moderate(request, id) {
     await database().prepare('INSERT INTO revisions(id,entry_id,version,data,created_at) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), id, old.version, old.data, now).run();
     return json({ saved: true });
 }
+async function saveDocument(request) {
+    const who = await identity(request);
+    if (!who.admin)
+        fail(403, '修改共享原文需要维护者权限');
+    await rate(request);
+    const { data: input } = await payload(request), courseId = text(input.courseId, 150, true), sourceUrl = text(input.sourceUrl, 2000, true);
+    if (!await courseExists(courseId))
+        fail(400, '课程不存在');
+    if (!/^materials\/[a-z0-9_./-]+\.md$/i.test(sourceUrl) && !/^https:\/\//.test(sourceUrl))
+        fail(400, '原文地址无效');
+    const id = 'doc-' + await digest(courseId + '\n' + sourceUrl), old = await lookup(id);
+    if (old && old.kind !== 'document')
+        fail(409, '记录类型冲突');
+    if (Number(input.version) !== (old?.version || 0))
+        fail(409, '原文已被修改，请刷新预览后再编辑；你的草稿已保留');
+    if (typeof input.content !== 'string' || !input.content.trim())
+        fail(400, '原文不能为空');
+    if (new TextEncoder().encode(input.content).length > 100000)
+        fail(400, '在线编辑支持不超过 100 KB 的原文');
+    const now = new Date().toISOString(), version = (old?.version || 0) + 1;
+    const data = { id, courseId, sourceUrl, title: text(input.title, 200, true), content: input.content, format: 'MD', downloadPath: '/api/documents/' + id };
+    if (old) {
+        const result = await database().prepare('UPDATE entries SET data=?,version=?,size=?,updated_at=? WHERE id=? AND version=?').bind(JSON.stringify(data), version, 0, now, id, old.version).run();
+        if (!result.meta.changes)
+            fail(409, '原文已被修改，请刷新后再试；你的草稿已保留');
+        await database().prepare('INSERT INTO revisions(id,entry_id,version,data,created_at) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), id, old.version, old.data, now).run();
+    }
+    else {
+        try {
+            await database().prepare('INSERT INTO entries(id,kind,course_id,data,owner_hash,version,size,created_at,updated_at) VALUES(?,?,?,?,?,1,0,?,?)').bind(id, 'document', courseId, JSON.stringify(data), null, now, now).run();
+        }
+        catch (error) {
+            if (await lookup(id))
+                fail(409, '原文已被修改，请刷新后再试；你的草稿已保留');
+            throw error;
+        }
+    }
+    return json({ id, version, record: { ...data, version, editable: true, updatedAt: now } }, old ? 200 : 201);
+}
+async function readDocument(id) {
+    const row = await lookup(id);
+    if (!row || row.kind !== 'document')
+        fail(404, '修订原文不存在');
+    const data = JSON.parse(row.data);
+    if (data.deleted)
+        fail(404, '修订原文不存在');
+    return new Response(data.content, { headers: { 'Content-Type': 'text/markdown; charset=utf-8', 'Content-Disposition': `attachment; filename="revision.md"; filename*=UTF-8''${encodeURIComponent(data.title.replace(/\.md$/i, '') + '.md')}`, 'Cache-Control': 'no-store' } });
+}
 export async function handle(request) {
     let response;
     try {
@@ -260,6 +312,10 @@ export async function handle(request) {
         }
         else if (path === '/api/contributions' && method === 'GET')
             response = await readAll(request);
+        else if (path === '/api/documents' && method === 'PUT')
+            response = await saveDocument(request);
+        else if (/^\/api\/documents\/doc-[a-f0-9]{64}$/.test(path) && method === 'GET')
+            response = await readDocument(path.split('/').pop());
         else if (path === '/api/entries' && method === 'POST')
             response = await save(request);
         else if (/^\/api\/entries\/[^/]+$/.test(path) && method === 'PUT')

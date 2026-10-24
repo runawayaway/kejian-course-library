@@ -79,10 +79,10 @@
     document.title=(c?c.name:path==='/mine'?'我的投稿':path==='/bookmarks'?'我的收藏':'课程资料与修课经验')+' · 课间';updateCount();window.scrollTo(0,0);
   }
   function rebuild(data){
-    contributions={courses:Array.isArray(data.courses)?data.courses:[],records:Array.isArray(data.records)?data.records:[],resources:Array.isArray(data.resources)?data.resources.map(r=>({...r,url:r.downloadPath?service.fileUrl(r.downloadPath)+'?v='+r.version:r.url})):[],courseOverrides:data.courseOverrides||[],baseEditable:!!data.baseEditable,admin:!!data.admin,reports:data.reports||[]};
+    contributions={courses:Array.isArray(data.courses)?data.courses:[],records:Array.isArray(data.records)?data.records:[],resources:Array.isArray(data.resources)?data.resources.map(r=>({...r,url:r.downloadPath?service.fileUrl(r.downloadPath)+'?v='+r.version:r.url})):[],documents:data.documents||[],courseOverrides:data.courseOverrides||[],baseEditable:!!data.baseEditable,admin:!!data.admin,reports:data.reports||[]};
     const next=JSON.stringify(contributions),changed=next!==signature,firstMerge=signature==='';signature=next;
     const base=baseCourses.map(c=>({...c,...contributions.courseOverrides.find(o=>o.id===c.id),resources:c.resources,experiences:c.experiences,editable:!!data.baseEditable}));
-    courses=[...base,...contributions.courses].map(c=>window.LearningGuides.attach({...c,resources:[...(c.resources||[]),...contributions.resources.filter(r=>r.courseId===c.id)],experiences:[...(c.experiences||[]),...contributions.records.filter(r=>r.courseId===c.id)]}));window.COURSES=courses;
+    courses=[...base,...contributions.courses].map(c=>window.LearningGuides.attach({...c,resources:[...(c.resources||[]),...contributions.resources.filter(r=>r.courseId===c.id)],experiences:[...(c.experiences||[]),...contributions.records.filter(r=>r.courseId===c.id)]})).map(c=>window.LearningGuides.applyDocuments(c,contributions.documents,!!data.admin));window.COURSES=courses;
     if(changed){if(location.hash==='#/mine')window.CommunityUI.render();else if(currentCourse){const c=courses.find(c=>c.id===currentCourse.id);if(c){if(firstMerge&&!location.hash.includes('?tab=')&&c.experiences.length)activeTab='experiences';detail(c);}else route();}else if(document.querySelector('#course-results'))renderResults(location.hash==='#/bookmarks');else if(location.hash.startsWith('#/course/'))route();}
     updateCount();updateSync();updateCourseOptions();
   }
@@ -139,7 +139,7 @@
   dialog.onclick=e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}};
   document.addEventListener('click',e=>{
     const feedback=e.target.closest('[data-feedback-resource],[data-feedback-record],[data-feedback-course]');if(feedback&&currentCourse){const resource=feedback.hasAttribute('data-feedback-resource')?currentCourse.resources[Number(feedback.dataset.feedbackResource)]:null,record=feedback.hasAttribute('data-feedback-record')?currentCourse.experiences.find(r=>r.id===feedback.dataset.feedbackRecord):null;window.CommunityUI.feedback({courseId:currentCourse.id,targetId:resource?.id||record?.id||(feedback.hasAttribute('data-feedback-course')?currentCourse.id:''),targetTitle:resource?.title||record?.title||currentCourse.name,sourceUrl:resource?.url?window.CoursePreview.fileUrl(resource.url):''});return;}
-    const preview=e.target.closest('[data-preview]');if(preview&&currentCourse){e.preventDefault();const resource=currentCourse.resources[Number(preview.dataset.preview)];if(resource){const variant=preview.hasAttribute('data-variant')?resource.variants?.[Number(preview.dataset.variant)]:null;window.CoursePreview.open({...resource,...variant});}return;}
+    const preview=e.target.closest('[data-preview]');if(preview&&currentCourse){e.preventDefault();const resource=currentCourse.resources[Number(preview.dataset.preview)];if(resource){const variant=preview.hasAttribute('data-variant')?resource.variants?.[Number(preview.dataset.variant)]:null;window.CoursePreview.open({...resource,...variant,courseId:currentCourse.id});}return;}
     const b=e.target.closest('[data-add-course],[data-write],[data-share],[data-refresh],[data-save],[data-edit-record],[data-edit-resource],[data-edit-course]');if(!b)return;
     if(b.hasAttribute('data-add-course'))openForm('course');
     if(b.hasAttribute('data-write'))openForm('experience');
@@ -161,6 +161,7 @@
   document.querySelector('#close-admin').onclick=()=>adminDialog.close();
   adminForm.onsubmit=async e=>{e.preventDefault();service.setAdminKey(adminForm.elements.key.value.trim());try{const data=await service.get();if(!data.admin)throw new Error('管理密钥不正确');rebuild(data);adminDialog.close();toast('已启用维护者权限');}catch(error){service.setAdminKey('');document.querySelector('#admin-error').textContent=error.message;}};
   if(location.hash.startsWith('#manage=')){service.setAdminKey(decodeURIComponent(location.hash.slice(8)));history.replaceState(null,'',location.pathname+'#/');}
+  window.addEventListener('course-document-saved',()=>refreshCommunity());
   window.CommunityUI.configure({data:()=>({courses,contributions}),refresh:refreshCommunity,rebuild,edit:openForm,toast,syncBar,removed:id=>{const next={...contributions};for(const key of ['courses','records','resources','reports'])next[key]=(next[key]||[]).filter(r=>r.id!==id);rebuild(next);}});
   window.addEventListener('hashchange',route);route();loadCommunity();
 })();
